@@ -2,13 +2,29 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { PubMedService } from "./services/pubmed";
 import { Paper, NetworkData, NetworkNode, NetworkEdge } from "../client/src/lib/types";
+import authRoutes from "./routes/auth";
+import projectRoutes from "./routes/projects";
+import annotationRoutes from "./routes/annotations";
+import sharingRoutes from "./routes/sharing";
+import teamRoutes from "./routes/teams";
+import { authenticateOptionalToken, AuthRequest } from "./auth";
+import { setupWebSocketServer } from "./websocket";
 
 const pubmedService = new PubMedService();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Search endpoint for papers
-  app.get("/api/search", async (req, res) => {
+  // Authentication routes
+  app.use("/api/auth", authRoutes);
+  
+  // Collaboration routes
+  app.use("/api/projects", projectRoutes);
+  app.use("/api/annotations", annotationRoutes);
+  app.use("/api/sharing", sharingRoutes);
+  app.use("/api/teams", teamRoutes);
+  
+  // Search endpoint for papers (with optional authentication)
+  app.get("/api/search", authenticateOptionalToken, async (req: AuthRequest, res) => {
     try {
       const query = req.query.q as string;
       
@@ -158,6 +174,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server for real-time collaboration
+  setupWebSocketServer(httpServer);
+  console.log('WebSocket server initialized for real-time collaboration');
+  
   return httpServer;
 }
 
