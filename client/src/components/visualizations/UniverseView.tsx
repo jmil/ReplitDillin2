@@ -17,28 +17,51 @@ interface FlowingPaperProps {
   timeOffset: number;
   onClick: () => void;
   isSelected: boolean;
+  yearRange: { minYear: number; maxYear: number };
 }
 
-function FlowingPaper({ node, position, timeOffset, onClick, isSelected }: FlowingPaperProps) {
+function FlowingPaper({ node, position, timeOffset, onClick, isSelected, yearRange }: FlowingPaperProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const [localTime, setLocalTime] = React.useState(timeOffset);
+  const selectionRingRef = useRef<THREE.Mesh>(null);
+  // Fix 1: Use useRef instead of useState to prevent per-frame React re-renders
+  const localTimeRef = useRef(timeOffset);
 
   useFrame((state, delta) => {
-    setLocalTime(prev => prev + delta * 0.5);
+    // Fix 1: Update ref directly without causing React re-renders
+    localTimeRef.current += delta * 0.5;
     
     if (meshRef.current) {
-      // Temporal funnel effect - papers flow downward in a spiral
-      const year = new Date(node.paper.publishDate).getFullYear();
-      const currentYear = new Date().getFullYear();
-      const yearProgress = (year - 1950) / (currentYear - 1950); // Normalize to 0-1
+      // Fix 3: Add robustness for invalid dates
+      let year: number;
+      try {
+        const publishDate = new Date(node.paper.publishDate);
+        year = publishDate.getFullYear();
+        // Guard against invalid dates that return NaN
+        if (isNaN(year)) {
+          console.warn('Invalid publish date for paper:', node.paper.title);
+          year = yearRange.minYear; // Fallback to earliest year
+        }
+      } catch (error) {
+        console.warn('Error parsing publish date for paper:', node.paper.title, error);
+        year = yearRange.minYear; // Fallback to earliest year
+      }
+      
+      // Ensure yearProgress is within valid range [0, 1]
+      let yearProgress = (year - yearRange.minYear) / (yearRange.maxYear - yearRange.minYear);
+      yearProgress = Math.max(0, Math.min(1, yearProgress)); // Clamp to [0, 1]
       
       // Create spiral motion
       const spiralRadius = 8 - (yearProgress * 6); // Older papers further out
-      const angle = localTime + timeOffset;
+      const angle = localTimeRef.current + timeOffset;
       
       meshRef.current.position.x = Math.cos(angle) * spiralRadius;
       meshRef.current.position.z = Math.sin(angle) * spiralRadius;
       meshRef.current.position.y = (yearProgress * 20) - 10; // Temporal depth
+      
+      // Fix 2: Update selection ring position to follow animated mesh
+      if (selectionRingRef.current && isSelected) {
+        selectionRingRef.current.position.copy(meshRef.current.position);
+      }
       
       // Gentle rotation
       meshRef.current.rotation.x += delta * 0.2;
@@ -105,9 +128,9 @@ function FlowingPaper({ node, position, timeOffset, onClick, isSelected }: Flowi
         </Html>
       </mesh>
       
-      {/* Selection indicator */}
+      {/* Fix 2: Selection indicator that follows the animated paper */}
       {isSelected && (
-        <mesh position={position}>
+        <mesh ref={selectionRingRef}>
           <ringGeometry args={[1, 1.2, 16]} />
           <meshBasicMaterial color="#EF4444" transparent opacity={0.6} />
         </mesh>
@@ -116,7 +139,7 @@ function FlowingPaper({ node, position, timeOffset, onClick, isSelected }: Flowi
   );
 }
 
-function TemporalFunnel() {
+function TemporalFunnel({ yearRange }: { yearRange: { minYear: number; maxYear: number } }) {
   const funnelRef = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
@@ -136,6 +159,20 @@ function TemporalFunnel() {
     return points;
   }, []);
 
+  // Generate time labels based on actual data range
+  const timeLabels = useMemo(() => {
+    const span = yearRange.maxYear - yearRange.minYear;
+    const labelCount = Math.min(4, Math.max(2, span)); // 2-4 labels
+    const labels = [];
+    
+    for (let i = 0; i < labelCount; i++) {
+      const year = Math.round(yearRange.minYear + (span * i) / (labelCount - 1));
+      labels.push(year);
+    }
+    
+    return labels;
+  }, [yearRange]);
+
   return (
     <group ref={funnelRef}>
       {/* Funnel wireframe */}
@@ -149,11 +186,11 @@ function TemporalFunnel() {
         />
       </mesh>
       
-      {/* Time axis labels */}
-      {[1960, 1980, 2000, 2020].map((year, index) => (
+      {/* Dynamic time axis labels */}
+      {timeLabels.map((year, index) => (
         <Html 
           key={year}
-          position={[12, (index * 5) - 7.5, 0]}
+          position={[12, (index * 20 / (timeLabels.length - 1)) - 10, 0]}
           distanceFactor={10}
         >
           <div className="text-white text-sm font-mono bg-black bg-opacity-60 px-2 py-1 rounded">
@@ -168,12 +205,42 @@ function TemporalFunnel() {
 function UniverseScene({ data }: { data: NetworkData }) {
   const { setSelectedPaper, selectedPaper } = usePapers();
 
+  // Calculate the actual year range from the dataset
+  const yearRange = useMemo(() => {
+    if (data.nodes.length === 0) return { minYear: 2020, maxYear: 2025 };
+    
+    const years = data.nodes.map(node => new Date(node.paper.publishDate).getFullYear());
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    
+    // Add some padding to make the range more visually interesting
+    const padding = Math.max(1, Math.floor((maxYear - minYear) * 0.1));
+    return { 
+      minYear: minYear - padding, 
+      maxYear: maxYear + padding 
+    };
+  }, [data.nodes]);
+
   // Sort nodes by publication date for temporal effect
   const sortedNodes = useMemo(() => {
     return [...data.nodes].sort((a, b) => {
       return new Date(a.paper.publishDate).getTime() - new Date(b.paper.publishDate).getTime();
     });
   }, [data.nodes]);
+
+  // Pre-calculate cosmic particles to avoid Math.random() in render
+  const cosmicParticles = useMemo(() => {
+    return Array.from({ length: 200 }, (_, i) => ({
+      id: i,
+      position: [
+        (Math.random() - 0.5) * 80,
+        (Math.random() - 0.5) * 40,
+        (Math.random() - 0.5) * 80
+      ] as [number, number, number],
+      color: Math.random() > 0.5 ? "#ffffff" : "#4A90E2",
+      opacity: Math.random() * 0.8 + 0.2
+    }));
+  }, []);
 
   return (
     <>
@@ -183,7 +250,7 @@ function UniverseScene({ data }: { data: NetworkData }) {
       <pointLight position={[0, 0, 0]} intensity={1} color="#FFD700" />
 
       {/* Temporal funnel structure */}
-      <TemporalFunnel />
+      <TemporalFunnel yearRange={yearRange} />
 
       {/* Flowing papers */}
       {sortedNodes.map((node, index) => (
@@ -194,6 +261,7 @@ function UniverseScene({ data }: { data: NetworkData }) {
           timeOffset={index * 0.5}
           onClick={() => setSelectedPaper(node.paper)}
           isSelected={selectedPaper?.id === node.id}
+          yearRange={yearRange}
         />
       ))}
 
@@ -207,24 +275,16 @@ function UniverseScene({ data }: { data: NetworkData }) {
       </mesh>
 
       {/* Floating cosmic particles */}
-      {Array.from({ length: 200 }).map((_, i) => {
-        const position = [
-          (Math.random() - 0.5) * 80,
-          (Math.random() - 0.5) * 40,
-          (Math.random() - 0.5) * 80
-        ] as [number, number, number];
-        
-        return (
-          <mesh key={i} position={position}>
-            <sphereGeometry args={[0.05, 4, 4]} />
-            <meshBasicMaterial 
-              color={Math.random() > 0.5 ? "#ffffff" : "#4A90E2"} 
-              transparent 
-              opacity={Math.random() * 0.8 + 0.2} 
-            />
-          </mesh>
-        );
-      })}
+      {cosmicParticles.map((particle) => (
+        <mesh key={particle.id} position={particle.position}>
+          <sphereGeometry args={[0.05, 4, 4]} />
+          <meshBasicMaterial 
+            color={particle.color} 
+            transparent 
+            opacity={particle.opacity} 
+          />
+        </mesh>
+      ))}
 
       {/* Energy streams */}
       {Array.from({ length: 8 }).map((_, i) => {
