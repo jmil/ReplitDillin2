@@ -6,6 +6,8 @@ import { FilterPanel } from "./components/FilterPanel";
 import { VisualizationModes } from "./components/VisualizationModes";
 import { PaperCard } from "./components/PaperCard";
 import { ExportButton } from "./components/ExportButton";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { Toaster } from "./components/ui/sonner";
 import { usePapers } from "./lib/stores/usePapers";
 import { Card } from "./components/ui/card";
 import { Alert, AlertDescription } from "./components/ui/alert";
@@ -41,31 +43,32 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 Dillin.ai
-                <span className="text-blue-600 ml-2">Scientific Intelligence</span>
+                <span className="text-blue-600 dark:text-blue-400 ml-2">Scientific Intelligence</span>
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 dark:text-gray-300 mt-1">
                 Explore research connections and citation networks
               </p>
             </div>
-            {/* Export functionality - only show when data is available */}
-            {mainPaper && !isLoading && (
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              {/* Export functionality - only show when data is available */}
+              {mainPaper && !isLoading && (
                 <ExportButton 
                   variant="outline" 
                   size="default"
                   className="shadow-sm"
                   visualizationElement={currentVisualizationElement}
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -126,8 +129,8 @@ function AppContent() {
                   <div className="lg:col-span-1">
                     <div className="sticky top-8 space-y-6">
                       {/* Main Paper Card */}
-                      <Card className="p-6 bg-white shadow-sm">
-                        <h3 className="font-semibold text-gray-900 mb-4">
+                      <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
                           Main Paper
                         </h3>
                         <PaperCard paper={mainPaper} isMain={true} />
@@ -135,8 +138,8 @@ function AppContent() {
 
                       {/* Selected Paper Details */}
                       {selectedPaper && selectedPaper.id !== mainPaper.id && (
-                        <Card className="p-6 bg-white shadow-sm">
-                          <h3 className="font-semibold text-gray-900 mb-4">
+                        <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
                             Selected Paper
                           </h3>
                           <PaperCard paper={selectedPaper} />
@@ -144,8 +147,8 @@ function AppContent() {
                       )}
 
                       {/* Statistics */}
-                      <Card className="p-6 bg-white shadow-sm">
-                        <h3 className="font-semibold text-gray-900 mb-4">
+                      <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
                           Network Statistics
                         </h3>
                         <div className="space-y-2 text-sm">
@@ -231,6 +234,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />
+      <Toaster />
     </QueryClientProvider>
   );
 }
