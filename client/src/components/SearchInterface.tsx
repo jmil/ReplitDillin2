@@ -6,7 +6,7 @@ import { Search, X } from "lucide-react";
 import { usePapers } from "../lib/stores/usePapers";
 
 export function SearchInterface() {
-  const crisprDoi = "10.1038/nature12373"; // Famous CRISPR-Cas9 paper
+  const crisprDoi = "10.1126/science.1225829"; // Famous CRISPR-Cas9 paper (Jinek et al. 2012)
   const [query, setQuery] = useState(crisprDoi);
   const { searchPaper, clearData, isLoading } = usePapers();
 
@@ -44,7 +44,7 @@ export function SearchInterface() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Enter DOI (10.1038/nature12373) or PubMed ID (33432212)"
+              placeholder="Enter DOI (10.1126/science.1225829) or PubMed ID (33432212)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-10 pr-10"
@@ -92,16 +92,16 @@ export function SearchInterface() {
         {query && !isValidQuery(query) && (
           <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
             <p className="font-medium">Invalid format</p>
-            <p>Please enter a valid DOI (e.g., 10.1038/nature12373) or PubMed ID (e.g., 33432212)</p>
+            <p>Please enter a valid DOI (e.g., 10.1126/science.1225829) or PubMed ID (e.g., 33432212)</p>
           </div>
         )}
         
         <div className="text-xs text-gray-500 dark:text-gray-400">
           <p className="mb-2">
-            <strong>Pre-loaded:</strong> CRISPR-Cas9 genome editing paper (Nature, 2013) - Click "Load CRISPR Paper" to explore its citation network
+            <strong>Pre-loaded:</strong> CRISPR-Cas9 genome editing paper (Science, 2012) by Jinek, Doudna & Charpentier - Click "Load CRISPR Paper" to explore its citation network
           </p>
           <p>
-            <strong>DOI:</strong> Digital Object Identifier (e.g., 10.1038/nature12373)
+            <strong>DOI:</strong> Digital Object Identifier (e.g., 10.1126/science.1225829)
           </p>
           <p>
             <strong>PubMed ID:</strong> Numerical identifier from PubMed database (e.g., 33432212)
