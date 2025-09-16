@@ -50,7 +50,10 @@ export function formatPubMedCitation(paper: Paper): string {
   
   journalCitation += '.';
   
-  let citation = `${authors} ${paper.title}. ${journalCitation}`;
+  // Fix title punctuation - only add period if title doesn't end with terminal punctuation
+  const titleWithPeriod = ensureProperTitlePunctuation(paper.title);
+  
+  let citation = `${authors} ${titleWithPeriod} ${journalCitation}`;
   
   if (paper.pmid) {
     citation += ` PMID: ${paper.pmid}.`;
@@ -61,6 +64,21 @@ export function formatPubMedCitation(paper: Paper): string {
   }
   
   return citation;
+}
+
+// Helper function to ensure proper title punctuation
+function ensureProperTitlePunctuation(title: string): string {
+  if (!title) return title;
+  
+  const trimmedTitle = title.trim();
+  
+  // If title ends with terminal punctuation (!, ?, .), don't add a period
+  if (/[.!?]$/.test(trimmedTitle)) {
+    return trimmedTitle;
+  }
+  
+  // Otherwise, add a period
+  return trimmedTitle + '.';
 }
 
 // Format authors according to PubMed standards
