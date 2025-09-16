@@ -2,7 +2,8 @@ import React from "react";
 import { Paper } from "../lib/types";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Calendar, Users, BookOpen, ExternalLink } from "lucide-react";
+import { Calendar, Users, BookOpen, ExternalLink, Quote } from "lucide-react";
+import { formatPubMedCitation, formatShortCitation } from "../lib/utils";
 
 interface PaperCardProps {
   paper: Paper;
@@ -66,6 +67,17 @@ export function PaperCard({ paper, isMain = false, onClick }: PaperCardProps) {
           <div className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
             <span>{new Date(paper.publishDate).getFullYear()}</span>
+          </div>
+        </div>
+
+        {/* PubMed Citation */}
+        <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-200">
+          <div className="flex items-start gap-2">
+            <Quote className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-gray-800 leading-relaxed">
+              <p className="font-medium mb-1 text-blue-900">PubMed Citation:</p>
+              <p className="break-words">{formatPubMedCitation(paper)}</p>
+            </div>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { OrbitControls, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { NetworkData } from "../../lib/types";
 import { usePapers } from "../../lib/stores/usePapers";
+import { formatPubMedCitation } from "../../lib/utils";
 
 interface UniverseViewProps {
   data: NetworkData;
@@ -79,19 +80,25 @@ function FlowingPaper({ node, position, timeOffset, onClick, isSelected }: Flowi
         <Html distanceFactor={8} position={[0, 1, 0]}>
           <div className="pointer-events-none text-center">
             <div 
-              className={`bg-black bg-opacity-80 text-white rounded px-2 py-1 text-xs max-w-32 ${
+              className={`bg-black bg-opacity-90 text-white rounded px-3 py-2 text-xs max-w-48 ${
                 isSelected ? 'border border-red-400' : ''
               }`}
               style={{ transform: 'translate(-50%, -100%)' }}
             >
-              <div className="font-medium truncate text-white">
+              <div className="font-medium truncate text-white mb-1">
                 {node.paper.title.substring(0, 25)}...
               </div>
-              <div className="text-gray-300 text-xs">
+              <div className="text-gray-300 text-xs mb-1">
                 {new Date(node.paper.publishDate).getFullYear()}
               </div>
-              <div className="text-gray-400 text-xs capitalize">
+              <div className="text-gray-400 text-xs capitalize mb-2">
                 {node.type}
+              </div>
+              <div className="bg-gray-800 bg-opacity-50 rounded p-1 border-t border-gray-600">
+                <div className="text-xs text-gray-200 leading-tight">
+                  <span className="font-medium text-blue-300">PubMed Citation: </span>
+                  <span>{formatPubMedCitation(node.paper).substring(0, 60)}...</span>
+                </div>
               </div>
             </div>
           </div>

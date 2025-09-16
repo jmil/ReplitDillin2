@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { NetworkData } from "../../lib/types";
 import { usePapers } from "../../lib/stores/usePapers";
+import { formatPubMedCitation } from "../../lib/utils";
 
 interface CytoscapeNetworkProps {
   data: NetworkData;
@@ -16,6 +17,7 @@ declare global {
 export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<any>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
   const { setSelectedPaper, selectedPaper } = usePapers();
 
   useEffect(() => {
@@ -166,11 +168,95 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
       wheelSensitivity: 0.1
     });
 
-    // Handle node selection
+    // Create tooltip element with proper reference management
+    if (tooltipRef.current) {
+      document.body.removeChild(tooltipRef.current);
+    }
+    
+    tooltipRef.current = document.createElement('div');
+    tooltipRef.current.style.cssText = `
+      position: absolute;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-width: 300px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 1000;
+      transition: opacity 0.2s;
+      line-height: 1.4;
+    `;
+    document.body.appendChild(tooltipRef.current);
+
+    // Handle node interactions
     cyRef.current.on('tap', 'node', (event: any) => {
       const node = event.target;
       const paper = node.data('paper');
       setSelectedPaper(paper);
+    });
+
+    cyRef.current.on('mouseover', 'node', (event: any) => {
+      const node = event.target;
+      const paper = node.data('paper');
+      const nodeType = node.data('type');
+      
+      if (!tooltipRef.current) return;
+      
+      // Clear existing content and build tooltip safely
+      tooltipRef.current.innerHTML = '';
+      
+      const container = document.createElement('div');
+      
+      // Paper type
+      const typeDiv = document.createElement('div');
+      typeDiv.style.cssText = 'font-weight: bold; color: #60A5FA; margin-bottom: 8px;';
+      typeDiv.textContent = nodeType === 'main' ? 'Main Paper' : nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+      container.appendChild(typeDiv);
+      
+      // Paper title
+      const titleDiv = document.createElement('div');
+      titleDiv.style.cssText = 'font-weight: bold; margin-bottom: 4px;';
+      titleDiv.textContent = paper.title;
+      container.appendChild(titleDiv);
+      
+      // Authors
+      const authorsDiv = document.createElement('div');
+      authorsDiv.style.cssText = 'color: #D1D5DB; margin-bottom: 8px;';
+      authorsDiv.textContent = paper.authors.slice(0, 3).join(', ') + (paper.authors.length > 3 ? ' et al.' : '');
+      container.appendChild(authorsDiv);
+      
+      // Citation section
+      const citationContainer = document.createElement('div');
+      citationContainer.style.cssText = 'border-top: 1px solid #374151; padding-top: 8px;';
+      
+      const citationLabel = document.createElement('div');
+      citationLabel.style.cssText = 'font-weight: bold; color: #FBBF24; margin-bottom: 4px;';
+      citationLabel.textContent = 'PubMed Citation:';
+      citationContainer.appendChild(citationLabel);
+      
+      const citationContent = document.createElement('div');
+      citationContent.textContent = formatPubMedCitation(paper);
+      citationContainer.appendChild(citationContent);
+      
+      container.appendChild(citationContainer);
+      tooltipRef.current.appendChild(container);
+      
+      // Position tooltip
+      const renderedPosition = node.renderedPosition();
+      const containerRect = containerRef.current!.getBoundingClientRect();
+      
+      tooltipRef.current.style.left = (containerRect.left + renderedPosition.x + 20) + 'px';
+      tooltipRef.current.style.top = (containerRect.top + renderedPosition.y - 10) + 'px';
+      tooltipRef.current.style.opacity = '1';
+    });
+
+    cyRef.current.on('mouseout', 'node', () => {
+      if (tooltipRef.current) {
+        tooltipRef.current.style.opacity = '0';
+      }
     });
 
     // Handle background tap
@@ -183,6 +269,11 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
     return () => {
       if (cyRef.current) {
         cyRef.current.destroy();
+      }
+      // Clean up tooltip using proper reference
+      if (tooltipRef.current && tooltipRef.current.parentNode) {
+        tooltipRef.current.parentNode.removeChild(tooltipRef.current);
+        tooltipRef.current = null;
       }
     };
   }, [data, setSelectedPaper]);

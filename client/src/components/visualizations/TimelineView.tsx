@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { NetworkData } from "../../lib/types";
 import { usePapers } from "../../lib/stores/usePapers";
+import { formatPubMedCitation } from "../../lib/utils";
 
 interface TimelineViewProps {
   data: NetworkData;
@@ -148,6 +149,14 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
                       <p className="text-xs text-gray-500">
                         {node.paper.journal}
                       </p>
+
+                      {/* PubMed Citation */}
+                      <div className="mt-3 p-2 bg-gray-50 rounded border-l-2 border-blue-200">
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          <span className="font-medium text-blue-800">PubMed Citation: </span>
+                          {formatPubMedCitation(node.paper)}
+                        </p>
+                      </div>
 
                       {/* Citation count if available */}
                       {node.paper.citationCount !== undefined && (

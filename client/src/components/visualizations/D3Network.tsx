@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { NetworkData } from "../../lib/types";
 import { usePapers } from "../../lib/stores/usePapers";
+import { formatPubMedCitation } from "../../lib/utils";
 
 interface D3NetworkProps {
   data: NetworkData;
@@ -133,10 +134,79 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
           d.label;
       });
 
-    // Handle node clicks
+    // Create tooltip
+    const tooltip = d3.select("body").append("div")
+      .attr("class", "d3-tooltip")
+      .style("position", "absolute")
+      .style("background", "rgba(0, 0, 0, 0.9)")
+      .style("color", "white")
+      .style("padding", "12px")
+      .style("border-radius", "8px")
+      .style("font-size", "12px")
+      .style("max-width", "300px")
+      .style("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)")
+      .style("pointer-events", "none")
+      .style("opacity", 0)
+      .style("z-index", "1000");
+
+    // Handle node interactions
     node.on("click", (event: any, d: any) => {
       event.stopPropagation();
       setSelectedPaper(d.paper);
+    })
+    .on("mouseover", (event: any, d: any) => {
+      tooltip.transition().duration(200).style("opacity", 1);
+      
+      // Clear existing content and build tooltip safely
+      tooltip.selectAll("*").remove();
+      
+      const container = tooltip.append("div");
+      
+      // Paper type
+      container.append("div")
+        .style("font-weight", "bold")
+        .style("color", "#60A5FA")
+        .style("margin-bottom", "8px")
+        .text(d.type === 'main' ? 'Main Paper' : d.type.charAt(0).toUpperCase() + d.type.slice(1));
+      
+      // Paper title
+      container.append("div")
+        .style("font-weight", "bold")
+        .style("margin-bottom", "4px")
+        .text(d.paper.title);
+      
+      // Authors
+      container.append("div")
+        .style("color", "#D1D5DB")
+        .style("margin-bottom", "8px")
+        .text(d.paper.authors.slice(0, 3).join(", ") + (d.paper.authors.length > 3 ? " et al." : ""));
+      
+      // Citation section
+      const citationDiv = container.append("div")
+        .style("border-top", "1px solid #374151")
+        .style("padding-top", "8px");
+      
+      citationDiv.append("div")
+        .style("font-weight", "bold")
+        .style("color", "#FBBF24")
+        .style("margin-bottom", "4px")
+        .text("PubMed Citation:");
+      
+      citationDiv.append("div")
+        .style("line-height", "1.4")
+        .text(formatPubMedCitation(d.paper));
+      
+      tooltip
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 10) + "px");
+    })
+    .on("mousemove", (event: any) => {
+      tooltip
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 10) + "px");
+    })
+    .on("mouseout", () => {
+      tooltip.transition().duration(200).style("opacity", 0);
     });
 
     // Handle background clicks
@@ -168,6 +238,8 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
 
     return () => {
       simulation.stop();
+      // Clean up tooltip
+      d3.select(".d3-tooltip").remove();
     };
   }, [data, selectedPaper, setSelectedPaper]);
 

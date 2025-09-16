@@ -4,6 +4,7 @@ import { OrbitControls, Text, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { NetworkData } from "../../lib/types";
 import { usePapers } from "../../lib/stores/usePapers";
+import { formatPubMedCitation } from "../../lib/utils";
 
 interface OrbitViewProps {
   data: NetworkData;
@@ -50,16 +51,20 @@ function OrbitingNode({ node, radius, speed, color, onClick, isSelected }: Orbit
         <Html distanceFactor={10}>
           <div className="pointer-events-none">
             <div 
-              className={`bg-white rounded px-2 py-1 text-xs shadow-md max-w-32 ${
+              className={`bg-white rounded px-3 py-2 text-xs shadow-md max-w-48 ${
                 isSelected ? 'border-2 border-red-400' : 'border border-gray-200'
               }`}
               style={{ transform: 'translate(-50%, -150%)' }}
             >
-              <div className="font-medium truncate">
+              <div className="font-medium truncate mb-1">
                 {node.paper.title.substring(0, 30)}...
               </div>
-              <div className="text-gray-500 text-xs">
+              <div className="text-gray-500 text-xs mb-1">
                 {new Date(node.paper.publishDate).getFullYear()}
+              </div>
+              <div className="text-xs text-gray-700 border-t pt-1">
+                <span className="font-medium text-blue-700">PubMed Citation: </span>
+                <span className="leading-tight">{formatPubMedCitation(node.paper).substring(0, 80)}...</span>
               </div>
             </div>
           </div>
@@ -97,7 +102,7 @@ function CentralNode({ node, onClick, isSelected }: { node: any; onClick: () => 
         <Html distanceFactor={15}>
           <div className="pointer-events-none text-center">
             <div 
-              className={`bg-blue-50 rounded-lg px-4 py-2 shadow-lg max-w-48 border-2 ${
+              className={`bg-blue-50 rounded-lg px-4 py-3 shadow-lg max-w-60 border-2 ${
                 isSelected ? 'border-red-400' : 'border-blue-200'
               }`}
               style={{ transform: 'translate(-50%, -200%)' }}
@@ -105,11 +110,17 @@ function CentralNode({ node, onClick, isSelected }: { node: any; onClick: () => 
               <div className="font-bold text-blue-900 text-sm mb-1">
                 Main Paper
               </div>
-              <div className="font-medium text-xs text-blue-800 leading-tight">
+              <div className="font-medium text-xs text-blue-800 leading-tight mb-2">
                 {node.paper.title.substring(0, 50)}...
               </div>
-              <div className="text-blue-600 text-xs mt-1">
+              <div className="text-blue-600 text-xs mb-2">
                 {new Date(node.paper.publishDate).getFullYear()} • {node.paper.journal}
+              </div>
+              <div className="bg-white rounded p-2 border border-blue-200">
+                <div className="text-xs text-gray-700 leading-relaxed">
+                  <span className="font-medium text-blue-800">PubMed Citation: </span>
+                  <span>{formatPubMedCitation(node.paper).substring(0, 100)}...</span>
+                </div>
               </div>
             </div>
           </div>
