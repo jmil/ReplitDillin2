@@ -6,7 +6,8 @@ import { Search, X } from "lucide-react";
 import { usePapers } from "../lib/stores/usePapers";
 
 export function SearchInterface() {
-  const [query, setQuery] = useState("");
+  const crisprDoi = "10.1038/nature12373"; // Famous CRISPR-Cas9 paper
+  const [query, setQuery] = useState(crisprDoi);
   const { searchPaper, clearData, isLoading } = usePapers();
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -21,6 +22,11 @@ export function SearchInterface() {
     clearData();
   };
 
+  const loadCrisprPaper = async () => {
+    setQuery(crisprDoi);
+    await searchPaper(crisprDoi);
+  };
+
   const isValidQuery = (q: string) => {
     // Check for DOI pattern
     const doiPattern = /^10\.\d{4,}\/[-._;()\/:a-zA-Z0-9]+$/;
@@ -31,7 +37,7 @@ export function SearchInterface() {
   };
 
   return (
-    <Card className="p-6 bg-white shadow-sm">
+    <Card className="p-6 bg-white dark:bg-gray-900 shadow-sm border-gray-200 dark:border-gray-800">
       <form onSubmit={handleSearch} className="space-y-4">
         <div className="flex items-center space-x-4">
           <div className="flex-1 relative">
@@ -58,9 +64,19 @@ export function SearchInterface() {
           <Button 
             type="submit" 
             disabled={isLoading || !query.trim()}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isLoading ? "Searching..." : "Search"}
+          </Button>
+          
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={loadCrisprPaper}
+            disabled={isLoading}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Load CRISPR Paper
           </Button>
           
           <Button 
@@ -80,7 +96,10 @@ export function SearchInterface() {
           </div>
         )}
         
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-2">
+            <strong>Pre-loaded:</strong> CRISPR-Cas9 genome editing paper (Nature, 2013) - Click "Load CRISPR Paper" to explore its citation network
+          </p>
           <p>
             <strong>DOI:</strong> Digital Object Identifier (e.g., 10.1038/nature12373)
           </p>
