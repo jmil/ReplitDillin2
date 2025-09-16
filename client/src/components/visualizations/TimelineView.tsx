@@ -8,9 +8,20 @@ interface TimelineViewProps {
   fullscreen?: boolean;
 }
 
-export function TimelineView({ data, fullscreen }: TimelineViewProps) {
+export const TimelineView = React.forwardRef<HTMLDivElement, TimelineViewProps>(
+  ({ data, fullscreen }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { setSelectedPaper, selectedPaper, clustering } = usePapers();
+
+  // Merge refs to expose container element
+  const mergedRef = React.useCallback((node: HTMLDivElement) => {
+    containerRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
 
   // Sort papers by publication date
   const sortedPapers = React.useMemo(() => {
@@ -80,7 +91,7 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
   const yearRange = papersByYear[papersByYear.length - 1][0] - papersByYear[0][0];
 
   return (
-    <div ref={containerRef} className="h-full bg-gray-50 overflow-auto">
+    <div ref={mergedRef} className="h-full bg-gray-50 overflow-auto">
       <div className="p-6">
         {/* Timeline Header */}
         <div className="mb-8">
@@ -233,4 +244,6 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
       </div>
     </div>
   );
-}
+});
+
+TimelineView.displayName = 'TimelineView';

@@ -14,9 +14,20 @@ declare global {
   }
 }
 
-export function D3Network({ data, fullscreen }: D3NetworkProps) {
+export const D3Network = React.forwardRef<SVGSVGElement, D3NetworkProps>(
+  ({ data, fullscreen }, ref) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const { setSelectedPaper, selectedPaper, clustering } = usePapers();
+
+  // Merge refs to expose SVG element
+  const mergedRef = React.useCallback((node: SVGSVGElement) => {
+    svgRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
 
   // Empty state when no data
   if (!data.nodes.length) {
@@ -346,7 +357,7 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
   return (
     <div className="h-full relative bg-gray-50">
       <svg
-        ref={svgRef}
+        ref={mergedRef}
         className="w-full h-full"
         style={{ background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)" }}
       />
@@ -385,4 +396,6 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
       </div>
     </div>
   );
-}
+});
+
+D3Network.displayName = 'D3Network';

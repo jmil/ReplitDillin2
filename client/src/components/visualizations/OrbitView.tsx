@@ -322,10 +322,21 @@ function OrbitScene({ data }: { data: NetworkData }) {
   );
 }
 
-export function OrbitView({ data, fullscreen }: OrbitViewProps) {
+export const OrbitView = React.forwardRef<HTMLDivElement, OrbitViewProps>(
+  ({ data, fullscreen }, ref) => {
+
+  // Merge refs to expose container element
+  const mergedRef = React.useCallback((node: HTMLDivElement) => {
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
+
   if (data.nodes.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-900">
+      <div ref={mergedRef} className="h-full flex items-center justify-center bg-gray-900">
         <div className="text-center text-gray-300">
           <div className="text-4xl mb-4">🪐</div>
           <p>No orbital data available</p>
@@ -335,7 +346,7 @@ export function OrbitView({ data, fullscreen }: OrbitViewProps) {
   }
 
   return (
-    <div className="h-full relative bg-gray-900">
+    <div ref={mergedRef} className="h-full relative bg-gray-900">
       <Canvas
         camera={{ 
           position: [0, 8, 12], 
@@ -371,4 +382,6 @@ export function OrbitView({ data, fullscreen }: OrbitViewProps) {
       </div>
     </div>
   );
-}
+});
+
+OrbitView.displayName = 'OrbitView';

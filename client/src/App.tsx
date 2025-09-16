@@ -5,6 +5,7 @@ import { SearchBar } from "./components/SearchBar";
 import { FilterPanel } from "./components/FilterPanel";
 import { VisualizationModes } from "./components/VisualizationModes";
 import { PaperCard } from "./components/PaperCard";
+import { ExportButton } from "./components/ExportButton";
 import { usePapers } from "./lib/stores/usePapers";
 import { Card } from "./components/ui/card";
 import { Alert, AlertDescription } from "./components/ui/alert";
@@ -33,6 +34,11 @@ function AppContent() {
   } = usePapers();
 
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [currentVisualizationElement, setCurrentVisualizationElement] = useState<Element | null>(null);
+
+  const handleVisualizationElementChange = (element: Element | null) => {
+    setCurrentVisualizationElement(element);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -49,6 +55,17 @@ function AppContent() {
                 Explore research connections and citation networks
               </p>
             </div>
+            {/* Export functionality - only show when data is available */}
+            {mainPaper && !isLoading && (
+              <div className="flex items-center gap-3">
+                <ExportButton 
+                  variant="outline" 
+                  size="default"
+                  className="shadow-sm"
+                  visualizationElement={currentVisualizationElement}
+                />
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -173,7 +190,9 @@ function AppContent() {
 
                   {/* Visualization Area */}
                   <div className="lg:col-span-3">
-                    <VisualizationModes />
+                    <VisualizationModes 
+                      onVisualizationElementChange={handleVisualizationElementChange}
+                    />
                   </div>
                 </div>
               </div>

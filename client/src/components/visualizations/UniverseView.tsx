@@ -308,10 +308,21 @@ function UniverseScene({ data }: { data: NetworkData }) {
   );
 }
 
-export function UniverseView({ data, fullscreen }: UniverseViewProps) {
+export const UniverseView = React.forwardRef<HTMLDivElement, UniverseViewProps>(
+  ({ data, fullscreen }, ref) => {
+
+  // Merge refs to expose container element
+  const mergedRef = React.useCallback((node: HTMLDivElement) => {
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
+
   if (data.nodes.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-900">
+      <div ref={mergedRef} className="h-full flex items-center justify-center bg-gray-900">
         <div className="text-center text-gray-300">
           <div className="text-4xl mb-4">🌌</div>
           <p>No universe data available</p>
@@ -321,7 +332,7 @@ export function UniverseView({ data, fullscreen }: UniverseViewProps) {
   }
 
   return (
-    <div className="h-full relative bg-gray-900">
+    <div ref={mergedRef} className="h-full relative bg-gray-900">
       <Canvas
         camera={{ 
           position: [15, 5, 15], 
@@ -392,4 +403,6 @@ export function UniverseView({ data, fullscreen }: UniverseViewProps) {
       </div>
     </div>
   );
-}
+});
+
+UniverseView.displayName = 'UniverseView';

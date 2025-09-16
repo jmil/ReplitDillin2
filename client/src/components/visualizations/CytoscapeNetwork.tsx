@@ -14,11 +14,22 @@ declare global {
   }
 }
 
-export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
+export const CytoscapeNetwork = React.forwardRef<HTMLDivElement, CytoscapeNetworkProps>(
+  ({ data, fullscreen }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<any>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const { setSelectedPaper, selectedPaper, clustering } = usePapers();
+
+  // Merge refs to expose container element
+  const mergedRef = React.useCallback((node: HTMLDivElement) => {
+    containerRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  }, [ref]);
 
   useEffect(() => {
     if (!containerRef.current || !window.cytoscape || !data.nodes.length) return;
@@ -368,8 +379,8 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
   }
 
   return (
-    <div className="h-full relative bg-gray-50">
-      <div ref={containerRef} className="w-full h-full" />
+    <div ref={mergedRef} className="h-full relative bg-gray-50">
+      <div className="w-full h-full" />
       
       {/* Legend */}
       <div className="absolute top-4 right-4 bg-white p-4 rounded-lg shadow-md border">
@@ -413,4 +424,6 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
       </div>
     </div>
   );
-}
+});
+
+CytoscapeNetwork.displayName = 'CytoscapeNetwork';

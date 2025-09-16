@@ -5,9 +5,19 @@ import {
   filterNetworkData, 
   createFilterStats, 
   getYearRangeFromPapers,
-  getCitationRangeFromPapers 
+  getCitationRangeFromPapers,
+  hasActiveFilters
 } from "../filters";
+import { ExportFormat, ExportOptions, ExportProgress, exportData } from "../export";
 import { defaultClusteringConfig, defaultClusteringEngine } from "../clustering";
+
+// Export state interface
+interface ExportState {
+  isExporting: boolean;
+  exportProgress: ExportProgress | null;
+  lastExportDate: Date | null;
+  supportedFormats: ExportFormat[];
+}
 
 interface PapersState {
   mainPaper: Paper | null;
@@ -20,6 +30,9 @@ interface PapersState {
   error: string | null;
   filters: SearchFilters;
   filterStats: FilterStats;
+  
+  // Export state
+  exportState: ExportState;
   
   // Actions
   setMainPaper: (paper: Paper) => void;
@@ -41,6 +54,10 @@ interface PapersState {
   setClusteringResult: (result: ClusteringResult | null) => void;
   toggleClustering: (enabled: boolean) => void;
   updateClusteringConfig: (config: Partial<ClusteringConfig>) => void;
+  
+  // Export actions
+  exportNetworkData: (format: ExportFormat, options: ExportOptions, visualizationElement?: Element) => Promise<void>;
+  setExportProgress: (progress: ExportProgress | null) => void;
 }
 
 export const usePapers = create<PapersState>((set, get) => ({
@@ -70,6 +87,22 @@ export const usePapers = create<PapersState>((set, get) => ({
     availableResults: [],
     isProcessing: false,
     config: defaultClusteringConfig
+  },
+  
+  // Export state
+  exportState: {
+    isExporting: false,
+    exportProgress: null,
+    lastExportDate: null,
+    supportedFormats: [
+      'json-complete',
+      'json-filtered',
+      'csv-papers',
+      'csv-citations',
+      'graphml',
+      'png-visualization',
+      'pdf-report'
+    ]
   },
   
   setMainPaper: (paper) => set({ mainPaper: paper }),
@@ -389,5 +422,80 @@ export const usePapers = create<PapersState>((set, get) => ({
         }
       }
     });
+  },
+
+  // Export actions
+  exportNetworkData: async (format: ExportFormat, options: ExportOptions, visualizationElement?: Element) => {
+    const state = get();
+    
+    try {
+      set({
+        exportState: {
+          ...state.exportState,
+          isExporting: true,
+          exportProgress: {
+            stage: 'Initializing',
+            progress: 0,
+            message: 'Preparing export...',
+            completed: false
+          }
+        }
+      });
+
+      // Determine if we should use filtered data based on format and active filters
+      const useFilteredData = (options.format === 'json-filtered') || 
+                               (options.format === 'csv-papers' && hasActiveFilters(state.filters, defaultFilters));
+
+      const exportDataPayload = {
+        networkData: useFilteredData 
+          ? state.filteredNetworkData 
+          : state.networkData,
+        papers: useFilteredData
+          ? state.filteredNetworkData.nodes.map(node => node.paper)
+          : state.allPapers,
+        filters: state.filters,
+        filterStats: state.filterStats,
+        clusteResult: state.clustering.currentResult,
+        visualizationElement
+      };
+
+      await exportData(format, exportDataPayload, options, (progress) => {
+        set(state => ({
+          exportState: {
+            ...state.exportState,
+            exportProgress: progress
+          }
+        }));
+      });
+
+      set({
+        exportState: {
+          ...state.exportState,
+          isExporting: false,
+          exportProgress: null,
+          lastExportDate: new Date()
+        }
+      });
+
+    } catch (error) {
+      console.error('Export failed:', error);
+      set({
+        exportState: {
+          ...state.exportState,
+          isExporting: false,
+          exportProgress: null
+        },
+        error: error instanceof Error ? error.message : 'Export failed'
+      });
+    }
+  },
+
+  setExportProgress: (progress: ExportProgress | null) => {
+    set(state => ({
+      exportState: {
+        ...state.exportState,
+        exportProgress: progress
+      }
+    }));
   }
 }));

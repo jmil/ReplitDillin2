@@ -17,7 +17,11 @@ import {
   Maximize2
 } from "lucide-react";
 
-export function VisualizationModes() {
+interface VisualizationModesProps {
+  onVisualizationElementChange?: (element: Element | null) => void;
+}
+
+export function VisualizationModes({ onVisualizationElementChange }: VisualizationModesProps) {
   const { 
     currentMode, 
     setVisualizationMode, 
@@ -26,6 +30,39 @@ export function VisualizationModes() {
     filters 
   } = usePapers();
   const [fullscreen, setFullscreen] = React.useState(false);
+
+  // Refs for each visualization component
+  const cytoscapeRef = React.useRef<HTMLDivElement>(null);
+  const d3Ref = React.useRef<SVGSVGElement>(null);
+  const timelineRef = React.useRef<HTMLDivElement>(null);
+  const orbitRef = React.useRef<HTMLDivElement>(null);
+  const universeRef = React.useRef<HTMLDivElement>(null);
+
+  // Get current active visualization element
+  const getCurrentVisualizationElement = React.useCallback((): Element | null => {
+    switch (currentMode) {
+      case 'cytoscape':
+        return cytoscapeRef.current;
+      case 'd3':
+        return d3Ref.current;
+      case 'timeline':
+        return timelineRef.current;
+      case 'orbit':
+        return orbitRef.current;
+      case 'universe':
+        return universeRef.current;
+      default:
+        return null;
+    }
+  }, [currentMode]);
+
+  // Notify parent when active visualization element changes
+  React.useEffect(() => {
+    const element = getCurrentVisualizationElement();
+    if (onVisualizationElementChange) {
+      onVisualizationElementChange(element);
+    }
+  }, [currentMode, onVisualizationElementChange, getCurrentVisualizationElement]);
 
   const toggleFullscreen = () => {
     setFullscreen(!fullscreen);
@@ -120,6 +157,27 @@ export function VisualizationModes() {
 
           {visualizationTabs.map((tab) => {
             const Component = tab.component;
+            let componentRef;
+            switch (tab.id) {
+              case 'cytoscape':
+                componentRef = cytoscapeRef;
+                break;
+              case 'd3':
+                componentRef = d3Ref;
+                break;
+              case 'timeline':
+                componentRef = timelineRef;
+                break;
+              case 'orbit':
+                componentRef = orbitRef;
+                break;
+              case 'universe':
+                componentRef = universeRef;
+                break;
+              default:
+                componentRef = null;
+            }
+
             return (
               <TabsContent 
                 key={tab.id}
@@ -128,6 +186,7 @@ export function VisualizationModes() {
               >
                 <div className="h-full relative">
                   <Component 
+                    ref={componentRef}
                     data={filteredNetworkData} 
                     fullscreen={fullscreen}
                   />
