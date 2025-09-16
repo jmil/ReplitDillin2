@@ -82,7 +82,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           abstract: details?.abstract || 'Abstract not available',
           meshTerms: details?.meshTerms || [],
           publishDateRaw: details?.publishDateRaw || summary.publishDate,
-          publishGranularity: details?.publishGranularity || determineDateGranularity(summary.publishDate)
+          publishGranularity: details?.publishGranularity || determineDateGranularity(summary.publishDate),
+          volume: details?.volume,
+          issue: details?.issue,
+          pages: details?.pages
         };
       });
 
@@ -99,6 +102,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         publishGranularity: mainPaperData.publishGranularity || determineDateGranularity(mainPaperData.publishDate),
         abstract: mainPaperData.abstract,
         citationCount: mainPaperData.citationCount,
+        volume: mainPaperData.volume,
+        issue: mainPaperData.issue,
+        pages: mainPaperData.pages,
         meshTerms: mainPaperData.meshTerms || []
       };
 
@@ -116,6 +122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
+          volume: p.volume,
+          issue: p.issue,
+          pages: p.pages,
           meshTerms: p.meshTerms || []
         }));
 
@@ -133,6 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
+          volume: p.volume,
+          issue: p.issue,
+          pages: p.pages,
           meshTerms: p.meshTerms || []
         }));
 
@@ -150,6 +162,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
+          volume: p.volume,
+          issue: p.issue,
+          pages: p.pages,
           meshTerms: p.meshTerms || []
         }));
 

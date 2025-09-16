@@ -304,6 +304,21 @@ export class PubMedService {
             }
           }
 
+          // Extract volume and issue from JournalIssue section
+          const journalIssuePattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<JournalIssue[\\s\\S]*?</JournalIssue>`, 'i');
+          const journalIssueSection = xmlText.match(journalIssuePattern)?.[0] || '';
+          
+          const volumeMatch = journalIssueSection.match(/<Volume>([^<]+)<\/Volume>/);
+          const issueMatch = journalIssueSection.match(/<Issue>([^<]+)<\/Issue>/);
+          const volume = volumeMatch?.[1] || '';
+          const issue = issueMatch?.[1] || '';
+
+          // Extract page numbers from Pagination section
+          const paginationPattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<Pagination[\\s\\S]*?</Pagination>`, 'i');
+          const paginationSection = xmlText.match(paginationPattern)?.[0] || '';
+          const pagesMatch = paginationSection.match(/<MedlinePgn>([^<]+)<\/MedlinePgn>/);
+          const pages = pagesMatch?.[1] || '';
+
           // Extract MeSH terms
           const meshPattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<MeshHeadingList[\\s\\S]*?</MeshHeadingList>`, 'i');
           const meshSection = xmlText.match(meshPattern)?.[0] || '';
@@ -318,6 +333,9 @@ export class PubMedService {
             abstract,
             publishDateRaw,
             publishGranularity,
+            volume: volume || undefined,
+            issue: issue || undefined,
+            pages: pages || undefined,
             meshTerms: meshTerms.slice(0, 10) // Limit MeSH terms
           });
         }

@@ -10,6 +10,9 @@ export interface Paper {
   publishGranularity?: 'year' | 'month' | 'day'; // Level of date detail available
   abstract: string;
   citationCount?: number;
+  volume?: string; // Journal volume number
+  issue?: string; // Journal issue number
+  pages?: string; // Page numbers (e.g., "123-130" or "e1234")
   references?: Paper[];
   citations?: Paper[];
   similarPapers?: Paper[];

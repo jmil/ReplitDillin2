@@ -24,7 +24,33 @@ export function formatPubMedCitation(paper: Paper): string {
     dateString = new Date(paper.publishDate).getFullYear().toString();
   }
   
-  let citation = `${authors} ${paper.title}. ${paper.journal}. ${dateString}.`;
+  // Format journal citation with volume/issue/pages
+  let journalCitation = paper.journal;
+  
+  // Add date
+  journalCitation += `. ${dateString}`;
+  
+  // Add volume, issue, and pages in standard PubMed format
+  if (paper.volume || paper.issue || paper.pages) {
+    if (paper.volume) {
+      journalCitation += `;${paper.volume}`;
+      
+      if (paper.issue) {
+        journalCitation += `(${paper.issue})`;
+      }
+      
+      if (paper.pages) {
+        journalCitation += `:${paper.pages}`;
+      }
+    } else if (paper.pages) {
+      // Handle the rare case where only pages are available
+      journalCitation += `:${paper.pages}`;
+    }
+  }
+  
+  journalCitation += '.';
+  
+  let citation = `${authors} ${paper.title}. ${journalCitation}`;
   
   if (paper.pmid) {
     citation += ` PMID: ${paper.pmid}.`;
@@ -46,8 +72,8 @@ function formatAuthors(authors: string[]): string {
   } else if (authors.length <= 6) {
     return `${authors.join(", ")}.`;
   } else {
-    // For more than 6 authors, show first 3 and add "et al."
-    return `${authors.slice(0, 3).join(", ")}, et al.`;
+    // For more than 6 authors, show first 6 and add "et al." (per PubMed standard)
+    return `${authors.slice(0, 6).join(", ")}, et al.`;
   }
 }
 
