@@ -10,7 +10,7 @@ interface TimelineViewProps {
 
 export function TimelineView({ data, fullscreen }: TimelineViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setSelectedPaper, selectedPaper } = usePapers();
+  const { setSelectedPaper, selectedPaper, clustering } = usePapers();
 
   // Sort papers by publication date
   const sortedPapers = React.useMemo(() => {
@@ -36,14 +36,27 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
     return Array.from(grouped.entries()).sort((a, b) => a[0] - b[0]);
   }, [sortedPapers]);
 
-  const getNodeColor = (type: string) => {
-    switch (type) {
+  const getNodeColor = (node: any) => {
+    // Use cluster color if clustering is active and node has cluster
+    if (clustering.isActive && node.clusterId && node.clusterColor) {
+      return `border-[3px]`;
+    }
+    
+    // Fallback to original type-based colors
+    switch (node.type) {
       case 'main': return 'bg-blue-500 border-blue-600';
       case 'reference': return 'bg-green-500 border-green-600';
       case 'citation': return 'bg-yellow-500 border-yellow-600';
       case 'similar': return 'bg-purple-500 border-purple-600';
       default: return 'bg-gray-500 border-gray-600';
     }
+  };
+
+  const getNodeBackgroundStyle = (node: any) => {
+    if (clustering.isActive && node.clusterId && node.clusterColor) {
+      return { backgroundColor: node.clusterColor };
+    }
+    return {};
   };
 
   const getNodeSize = (type: string) => {
@@ -129,16 +142,36 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
                       {/* Paper type indicator */}
                       <div className="flex items-center gap-3 mb-3">
                         <div 
-                          className={`rounded-full border-2 ${getNodeColor(node.type)} ${getNodeSize(node.type)}`}
+                          className={`rounded-full border-2 ${getNodeColor(node)} ${getNodeSize(node.type)}`}
+                          style={getNodeBackgroundStyle(node)}
                         ></div>
-                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          {node.type === 'main' ? 'Main Paper' : 
-                           node.type === 'reference' ? 'Reference' :
-                           node.type === 'citation' ? 'Citation' : 'Similar'}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(node.paper.publishDate).toLocaleDateString()}
-                        </span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              {node.type === 'main' ? 'Main Paper' : 
+                               node.type === 'reference' ? 'Reference' :
+                               node.type === 'citation' ? 'Citation' : 'Similar'}
+                            </span>
+                            {/* Cluster badge */}
+                            {clustering.isActive && node.clusterId && clustering.currentResult && (
+                              (() => {
+                                const cluster = clustering.currentResult.clusters.find((c: any) => c.id === node.clusterId);
+                                return cluster ? (
+                                  <span 
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                                    style={{ backgroundColor: cluster.color }}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white/80"></span>
+                                    {cluster.name}
+                                  </span>
+                                ) : null;
+                              })()
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(node.paper.publishDate).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Paper details */}

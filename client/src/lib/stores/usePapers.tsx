@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Paper, NetworkData, VisualizationMode, SearchFilters, FilterStats } from "../types";
+import { Paper, NetworkData, VisualizationMode, SearchFilters, FilterStats, ClusteringState, ClusteringResult, ClusteringConfig } from "../types";
 import { 
   defaultFilters, 
   filterNetworkData, 
@@ -7,6 +7,7 @@ import {
   getYearRangeFromPapers,
   getCitationRangeFromPapers 
 } from "../filters";
+import { defaultClusteringConfig, defaultClusteringEngine } from "../clustering";
 
 interface PapersState {
   mainPaper: Paper | null;
@@ -33,6 +34,13 @@ interface PapersState {
   updateFilters: (newFilters: Partial<SearchFilters>) => void;
   resetFilters: () => void;
   applyFilters: () => void;
+  
+  // Clustering actions
+  clustering: ClusteringState;
+  performClustering: (config: ClusteringConfig) => Promise<void>;
+  setClusteringResult: (result: ClusteringResult | null) => void;
+  toggleClustering: (enabled: boolean) => void;
+  updateClusteringConfig: (config: Partial<ClusteringConfig>) => void;
 }
 
 export const usePapers = create<PapersState>((set, get) => ({
@@ -51,7 +59,17 @@ export const usePapers = create<PapersState>((set, get) => ({
     yearRange: [new Date().getFullYear() - 10, new Date().getFullYear()],
     availableJournals: [],
     availableAuthors: [],
-    citationRange: [0, 100]
+    citationRange: [0, 100],
+    availableClusters: []
+  },
+  
+  // Clustering state
+  clustering: {
+    isActive: false,
+    currentResult: null,
+    availableResults: [],
+    isProcessing: false,
+    config: defaultClusteringConfig
   },
   
   setMainPaper: (paper) => set({ mainPaper: paper }),
@@ -181,7 +199,195 @@ export const usePapers = create<PapersState>((set, get) => ({
       yearRange: [new Date().getFullYear() - 10, new Date().getFullYear()],
       availableJournals: [],
       availableAuthors: [],
-      citationRange: [0, 100]
+      citationRange: [0, 100],
+      availableClusters: []
+    },
+    clustering: {
+      isActive: false,
+      currentResult: null,
+      availableResults: [],
+      isProcessing: false,
+      config: defaultClusteringConfig
     }
-  })
+  }),
+
+  // Clustering actions
+  performClustering: async (config: ClusteringConfig) => {
+    const state = get();
+    if (state.allPapers.length === 0) {
+      set({ error: 'No papers available for clustering' });
+      return;
+    }
+
+    set({
+      clustering: {
+        ...state.clustering,
+        isProcessing: true,
+        config
+      },
+      error: null
+    });
+
+    try {
+      const result = await defaultClusteringEngine.performClustering(
+        state.allPapers,
+        state.networkData,
+        config
+      );
+
+      // Update network nodes with cluster information
+      const updatedNetworkData = {
+        ...state.networkData,
+        nodes: state.networkData.nodes.map(node => {
+          const clusterId = result.assignments[node.paper.id];
+          const cluster = clusterId ? result.clusters.find(c => c.id === clusterId) : null;
+          return {
+            ...node,
+            clusterId: clusterId || null,
+            clusterColor: cluster?.color || node.color
+          };
+        })
+      };
+
+      // Update filter stats with available clusters
+      const updatedFilterStats = {
+        ...state.filterStats,
+        availableClusters: result.clusters
+      };
+
+      // Apply current filters to new network data
+      const filteredData = filterNetworkData(updatedNetworkData, state.filters);
+
+      set({
+        clustering: {
+          ...state.clustering,
+          isActive: true,
+          currentResult: result,
+          availableResults: [...state.clustering.availableResults, result],
+          isProcessing: false
+        },
+        networkData: updatedNetworkData,
+        filteredNetworkData: filteredData,
+        filterStats: updatedFilterStats
+      });
+
+    } catch (error) {
+      set({
+        clustering: {
+          ...state.clustering,
+          isProcessing: false
+        },
+        error: error instanceof Error ? error.message : 'Clustering failed'
+      });
+    }
+  },
+
+  setClusteringResult: (result: ClusteringResult | null) => {
+    const state = get();
+    
+    if (!result) {
+      // Remove clustering
+      const updatedNetworkData = {
+        ...state.networkData,
+        nodes: state.networkData.nodes.map(node => ({
+          ...node,
+          clusterId: undefined,
+          clusterColor: undefined
+        }))
+      };
+
+      const filteredData = filterNetworkData(updatedNetworkData, state.filters);
+      const updatedFilterStats = {
+        ...state.filterStats,
+        availableClusters: []
+      };
+
+      set({
+        clustering: {
+          ...state.clustering,
+          isActive: false,
+          currentResult: null
+        },
+        networkData: updatedNetworkData,
+        filteredNetworkData: filteredData,
+        filterStats: updatedFilterStats
+      });
+      return;
+    }
+
+    // Apply clustering result
+    const updatedNetworkData = {
+      ...state.networkData,
+      nodes: state.networkData.nodes.map(node => ({
+        ...node,
+        clusterId: result.assignments.get(node.paper.id) || null,
+        clusterColor: result.clusters.find(c => c.id === result.assignments.get(node.paper.id))?.color || node.color
+      }))
+    };
+
+    const filteredData = filterNetworkData(updatedNetworkData, state.filters);
+    const updatedFilterStats = {
+      ...state.filterStats,
+      availableClusters: result.clusters
+    };
+
+    set({
+      clustering: {
+        ...state.clustering,
+        isActive: true,
+        currentResult: result
+      },
+      networkData: updatedNetworkData,
+      filteredNetworkData: filteredData,
+      filterStats: updatedFilterStats
+    });
+  },
+
+  toggleClustering: (enabled: boolean) => {
+    const state = get();
+    
+    if (!enabled) {
+      // Disable clustering
+      const updatedNetworkData = {
+        ...state.networkData,
+        nodes: state.networkData.nodes.map(node => ({
+          ...node,
+          clusterId: undefined,
+          clusterColor: undefined
+        }))
+      };
+
+      const filteredData = filterNetworkData(updatedNetworkData, state.filters);
+      const updatedFilterStats = {
+        ...state.filterStats,
+        availableClusters: []
+      };
+
+      set({
+        clustering: {
+          ...state.clustering,
+          isActive: false
+        },
+        networkData: updatedNetworkData,
+        filteredNetworkData: filteredData,
+        filterStats: updatedFilterStats
+      });
+    } else if (state.clustering.currentResult) {
+      // Re-enable with existing result
+      get().setClusteringResult(state.clustering.currentResult);
+    }
+  },
+
+  updateClusteringConfig: (newConfig: Partial<ClusteringConfig>) => {
+    const state = get();
+    set({
+      clustering: {
+        ...state.clustering,
+        config: {
+          ...state.clustering.config,
+          ...newConfig
+        }
+      }
+    });
+  }
 }));

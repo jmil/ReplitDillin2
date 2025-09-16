@@ -36,6 +36,8 @@ export interface NetworkNode {
   size?: number;
   color?: string;
   type: 'main' | 'reference' | 'citation' | 'similar';
+  clusterId?: string;
+  clusterColor?: string;
 }
 
 export interface NetworkEdge {
@@ -57,6 +59,7 @@ export interface SearchFilters {
   authors: string[];
   minCitations: number;
   maxCitations: number;
+  selectedClusters: string[];
 }
 
 export interface FilterStats {
@@ -66,4 +69,107 @@ export interface FilterStats {
   availableJournals: string[];
   availableAuthors: string[];
   citationRange: [number, number];
+  availableClusters: ClusterInfo[];
+}
+
+// Clustering interfaces
+export type ClusteringAlgorithm = 'kmeans' | 'hierarchical' | 'community' | 'hybrid';
+
+export interface ClusterInfo {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  paperIds: string[];
+  size: number;
+  keywords: string[];
+  representativePaper?: Paper;
+  coherenceScore?: number;
+}
+
+export interface FeatureVector {
+  paperId: string;
+  textFeatures: number[];
+  networkFeatures: {
+    degree: number;
+    betweenness: number;
+    closeness: number;
+    clustering: number;
+  };
+  temporalFeatures: {
+    publicationYear: number;
+    citationAge: number;
+  };
+  categoricalFeatures: {
+    journal: string;
+    authors: string[];
+    meshTerms: string[];
+  };
+}
+
+export interface ClusteringConfig {
+  algorithm: ClusteringAlgorithm;
+  numClusters?: number;
+  features: {
+    useText: boolean;
+    useNetwork: boolean;
+    useTemporal: boolean;
+    useCategorical: boolean;
+  };
+  textProcessing: {
+    method: 'tfidf' | 'embeddings';
+    minWordLength: number;
+    maxFeatures: number;
+    removeStopwords: boolean;
+    scalingMethod?: 'zscore' | 'minmax';
+  };
+  networkWeights: {
+    degree: number;
+    betweenness: number;
+    closeness: number;
+    clustering: number;
+  };
+  featureWeights?: {
+    text: number;
+    network: number;
+    temporal: number;
+    categorical: number;
+  };
+  performance?: {
+    useWebWorker?: boolean;
+    maxSilhouetteSamples?: number;
+    timeout?: number;
+  };
+}
+
+export interface ClusteringResult {
+  id: string;
+  algorithm: ClusteringAlgorithm;
+  config: ClusteringConfig;
+  clusters: ClusterInfo[];
+  assignments: Record<string, string>; // paperId -> clusterId
+  quality: {
+    silhouetteScore?: number;
+    modularityScore?: number;
+    inertia?: number;
+  };
+  createdAt: Date;
+  processingTime: number;
+}
+
+export interface TextDocument {
+  id: string;
+  title: string;
+  abstract: string;
+  keywords: string[];
+  meshTerms: string[];
+  combinedText: string;
+}
+
+export interface ClusteringState {
+  isActive: boolean;
+  currentResult: ClusteringResult | null;
+  availableResults: ClusteringResult[];
+  isProcessing: boolean;
+  config: ClusteringConfig;
 }

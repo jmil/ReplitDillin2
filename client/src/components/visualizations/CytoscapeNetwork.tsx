@@ -18,7 +18,7 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<any>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const { setSelectedPaper, selectedPaper } = usePapers();
+  const { setSelectedPaper, selectedPaper, clustering } = usePapers();
 
   useEffect(() => {
     if (!containerRef.current || !window.cytoscape || !data.nodes.length) return;
@@ -34,7 +34,10 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
           id: node.id, 
           label: node.label,
           paper: node.paper,
-          type: node.type
+          type: node.type,
+          clusterId: node.clusterId,
+          clusterColor: node.clusterColor,
+          hasCluster: !!node.clusterId && clustering.isActive
         }
       })),
       ...data.edges.map(edge => ({
@@ -54,7 +57,24 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
         {
           selector: 'node',
           style: {
-            'background-color': 'data(type)',
+            'background-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              const type = ele.data('type');
+              
+              if (hasCluster && clusterColor) {
+                return clusterColor;
+              }
+              
+              // Fallback to original type-based colors
+              switch (type) {
+                case 'main': return '#3B82F6';
+                case 'reference': return '#10B981';
+                case 'citation': return '#F59E0B';
+                case 'similar': return '#8B5CF6';
+                default: return '#6B7280';
+              }
+            },
             'label': 'data(label)',
             'text-valign': 'center',
             'text-halign': 'center',
@@ -64,38 +84,63 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
             'text-max-width': '120px',
             'width': 40,
             'height': 40,
-            'border-width': 2,
-            'border-color': '#fff',
+            'border-width': (ele: any) => {
+              return ele.data('hasCluster') ? 3 : 2;
+            },
+            'border-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              return hasCluster && clusterColor ? clusterColor : '#fff';
+            },
             'color': '#333'
           }
         },
         {
           selector: 'node[type="main"]',
           style: {
-            'background-color': '#3B82F6',
+            'background-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              return hasCluster && clusterColor ? clusterColor : '#3B82F6';
+            },
             'width': 60,
             'height': 60,
             'font-size': '14px',
             'font-weight': 'bold',
-            'color': '#fff'
+            'color': '#fff',
+            'border-width': (ele: any) => {
+              return ele.data('hasCluster') ? 4 : 2;
+            }
           }
         },
         {
           selector: 'node[type="reference"]',
           style: {
-            'background-color': '#10B981'
+            'background-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              return hasCluster && clusterColor ? clusterColor : '#10B981';
+            }
           }
         },
         {
           selector: 'node[type="citation"]',
           style: {
-            'background-color': '#F59E0B'
+            'background-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              return hasCluster && clusterColor ? clusterColor : '#F59E0B';
+            }
           }
         },
         {
           selector: 'node[type="similar"]',
           style: {
-            'background-color': '#8B5CF6'
+            'background-color': (ele: any) => {
+              const hasCluster = ele.data('hasCluster');
+              const clusterColor = ele.data('clusterColor');
+              return hasCluster && clusterColor ? clusterColor : '#8B5CF6';
+            }
           }
         },
         {
@@ -215,6 +260,25 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
       typeDiv.style.cssText = 'font-weight: bold; color: #60A5FA; margin-bottom: 8px;';
       typeDiv.textContent = nodeType === 'main' ? 'Main Paper' : nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
       container.appendChild(typeDiv);
+
+      // Cluster information (if available)
+      const clusterId = node.data('clusterId');
+      const hasCluster = node.data('hasCluster');
+      if (hasCluster && clusterId && clustering.currentResult) {
+        const cluster = clustering.currentResult.clusters.find(c => c.id === clusterId);
+        if (cluster) {
+          const clusterDiv = document.createElement('div');
+          clusterDiv.style.cssText = 'font-size: 11px; color: #666; margin-bottom: 6px; padding: 2px 6px; background: rgba(0,0,0,0.1); border-radius: 4px;';
+          clusterDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <div style="width: 8px; height: 8px; border-radius: 50%; background: ${cluster.color};"></div>
+              <span style="font-weight: 500;">${cluster.name}</span>
+            </div>
+            <div style="font-size: 10px; margin-top: 2px; opacity: 0.8;">${cluster.size} papers in cluster</div>
+          `;
+          container.appendChild(clusterDiv);
+        }
+      }
       
       // Paper title
       const titleDiv = document.createElement('div');

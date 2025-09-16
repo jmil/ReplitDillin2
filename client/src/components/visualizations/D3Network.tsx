@@ -16,7 +16,7 @@ declare global {
 
 export function D3Network({ data, fullscreen }: D3NetworkProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const { setSelectedPaper, selectedPaper } = usePapers();
+  const { setSelectedPaper, selectedPaper, clustering } = usePapers();
 
   // Empty state when no data
   if (!data.nodes.length) {
@@ -54,12 +54,20 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
 
     const container = svg.append("g");
 
-    // Color mapping for node types
-    const colorMap = {
+    // Color mapping for node types (fallback when clustering is not active)
+    const defaultColorMap = {
       main: "#3B82F6",
       reference: "#10B981", 
       citation: "#F59E0B",
       similar: "#8B5CF6"
+    };
+
+    // Function to get node color based on clustering state
+    const getNodeColor = (node: any) => {
+      if (clustering.isActive && node.clusterId && node.clusterColor) {
+        return node.clusterColor;
+      }
+      return defaultColorMap[node.type as keyof typeof defaultColorMap] || "#6B7280";
     };
 
     // Create simulation
@@ -72,7 +80,7 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
     // Create arrow markers for directed edges
     const defs = svg.append("defs");
     
-    Object.entries(colorMap).forEach(([type, color]) => {
+    Object.entries(defaultColorMap).forEach(([type, color]) => {
       defs.append("marker")
         .attr("id", `arrow-${type}`)
         .attr("viewBox", "0 -5 10 10")
@@ -86,6 +94,23 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
         .attr("fill", color);
     });
 
+    // Create additional markers for cluster colors if clustering is active
+    if (clustering.isActive && clustering.currentResult) {
+      clustering.currentResult.clusters.forEach(cluster => {
+        defs.append("marker")
+          .attr("id", `arrow-cluster-${cluster.id}`)
+          .attr("viewBox", "0 -5 10 10")
+          .attr("refX", 15)
+          .attr("refY", 0)
+          .attr("markerWidth", 6)
+          .attr("markerHeight", 6)
+          .attr("orient", "auto")
+          .append("path")
+          .attr("d", "M0,-5L10,0L0,5")
+          .attr("fill", cluster.color);
+      });
+    }
+
     // Create edges
     const link = container.append("g")
       .selectAll("line")
@@ -93,16 +118,30 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
       .enter()
       .append("line")
       .attr("stroke", (d: any) => {
+        // Use cluster color for source node if clustering is active
+        const sourceNode = data.nodes.find(n => n.id === d.source.id || n.id === d.source);
+        if (clustering.isActive && sourceNode?.clusterColor) {
+          return sourceNode.clusterColor;
+        }
+        
+        // Fallback to original type-based colors
         switch(d.type) {
-          case 'references': return colorMap.reference;
-          case 'citations': return colorMap.citation;
-          case 'similar': return colorMap.similar;
+          case 'references': return defaultColorMap.reference;
+          case 'citations': return defaultColorMap.citation;
+          case 'similar': return defaultColorMap.similar;
           default: return "#999";
         }
       })
       .attr("stroke-width", (d: any) => d.type === 'similar' ? 1 : 2)
       .attr("stroke-dasharray", (d: any) => d.type === 'similar' ? "5,5" : null)
-      .attr("marker-end", (d: any) => `url(#arrow-${d.type})`);
+      .attr("marker-end", (d: any) => {
+        // Use cluster-based arrow marker if clustering is active
+        const sourceNode = data.nodes.find(n => n.id === d.source.id || n.id === d.source);
+        if (clustering.isActive && sourceNode?.clusterId) {
+          return `url(#arrow-cluster-${sourceNode.clusterId})`;
+        }
+        return `url(#arrow-${d.type})`;
+      });
 
     // Create nodes
     const node = container.append("g")
@@ -131,9 +170,19 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
     // Add circles to nodes
     node.append("circle")
       .attr("r", (d: any) => d.type === 'main' ? 20 : 12)
-      .attr("fill", (d: any) => colorMap[d.type as keyof typeof colorMap] || "#999")
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 2);
+      .attr("fill", getNodeColor)
+      .attr("stroke", (d: any) => {
+        if (clustering.isActive && d.clusterId && d.clusterColor) {
+          return d.clusterColor;
+        }
+        return "#fff";
+      })
+      .attr("stroke-width", (d: any) => {
+        if (clustering.isActive && d.clusterId) {
+          return d.type === 'main' ? 4 : 3;
+        }
+        return 2;
+      });
 
     // Add labels
     node.append("text")
@@ -183,6 +232,42 @@ export function D3Network({ data, fullscreen }: D3NetworkProps) {
         .style("color", "#60A5FA")
         .style("margin-bottom", "8px")
         .text(d.type === 'main' ? 'Main Paper' : d.type.charAt(0).toUpperCase() + d.type.slice(1));
+      
+      // Cluster information (if available)
+      if (clustering.isActive && d.clusterId && clustering.currentResult) {
+        const cluster = clustering.currentResult.clusters.find((c: any) => c.id === d.clusterId);
+        if (cluster) {
+          const clusterDiv = container.append("div")
+            .style("font-size", "11px")
+            .style("color", "#D1D5DB")
+            .style("margin-bottom", "6px")
+            .style("padding", "4px 8px")
+            .style("background", "rgba(255,255,255,0.1)")
+            .style("border-radius", "4px");
+          
+          const clusterHeader = clusterDiv.append("div")
+            .style("display", "flex")
+            .style("align-items", "center")
+            .style("gap", "4px");
+          
+          clusterHeader.append("div")
+            .style("width", "8px")
+            .style("height", "8px")
+            .style("border-radius", "50%")
+            .style("background", cluster.color);
+          
+          clusterHeader.append("span")
+            .style("font-weight", "500")
+            .style("color", "#F3F4F6")
+            .text(cluster.name);
+          
+          clusterDiv.append("div")
+            .style("font-size", "10px")
+            .style("margin-top", "2px")
+            .style("opacity", "0.8")
+            .text(`${cluster.size} papers in cluster`);
+        }
+      }
       
       // Paper title
       container.append("div")

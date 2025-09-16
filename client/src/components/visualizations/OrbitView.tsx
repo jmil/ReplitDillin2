@@ -23,6 +23,7 @@ interface OrbitingNodeProps {
 function OrbitingNode({ node, radius, speed, color, onClick, isSelected }: OrbitingNodeProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [time, setTime] = React.useState(Math.random() * Math.PI * 2);
+  const { clustering } = usePapers();
 
   useFrame((state, delta) => {
     setTime(prev => prev + delta * speed);
@@ -59,6 +60,25 @@ function OrbitingNode({ node, radius, speed, color, onClick, isSelected }: Orbit
               <div className="font-medium truncate mb-1">
                 {node.paper.title.substring(0, 30)}...
               </div>
+              
+              {/* Cluster information */}
+              {clustering.isActive && node.clusterId && clustering.currentResult && (
+                (() => {
+                  const cluster = clustering.currentResult.clusters.find((c: any) => c.id === node.clusterId);
+                  return cluster ? (
+                    <div className="mb-1">
+                      <span 
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: cluster.color }}
+                      >
+                        <span className="w-1 h-1 rounded-full bg-white/80"></span>
+                        {cluster.name}
+                      </span>
+                    </div>
+                  ) : null;
+                })()
+              )}
+              
               <div className="text-gray-500 text-xs mb-1">
                 {new Date(node.paper.publishDate).getFullYear()}
               </div>
@@ -140,14 +160,90 @@ function CentralNode({ node, onClick, isSelected }: { node: any; onClick: () => 
   );
 }
 
+function EnhancedLegend() {
+  const { clustering } = usePapers();
+  
+  return (
+    <div className="absolute top-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg max-w-80">
+      <h4 className="font-semibold text-sm mb-3">Orbital Legend</h4>
+      
+      {/* Orbital Information */}
+      <div className="space-y-2 text-xs mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+          <span>Main Paper (Center)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span>References (Inner orbit)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <span>Citations (Middle orbit)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+          <span>Similar (Outer orbit)</span>
+        </div>
+      </div>
+      
+      {/* Cluster Information (if clustering is active) */}
+      {clustering.isActive && clustering.currentResult?.clusters && (
+        <div>
+          <div className="border-t border-gray-600 pt-3 mb-2">
+            <h5 className="font-medium text-xs text-gray-300 mb-2">Active Clusters</h5>
+          </div>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {clustering.currentResult.clusters.map((cluster) => (
+              <div key={cluster.id} className="flex items-center gap-2 text-xs">
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cluster.color }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-white truncate">{cluster.name}</div>
+                  <div className="text-gray-400 text-[10px]">{cluster.size} papers</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Clustering Quality Metrics */}
+          {clustering.currentResult.quality && (
+            <div className="border-t border-gray-600 pt-2 mt-3">
+              <div className="text-[10px] text-gray-400 space-y-1">
+                {clustering.currentResult.quality.silhouetteScore && (
+                  <div>Silhouette: {clustering.currentResult.quality.silhouetteScore.toFixed(3)}</div>
+                )}
+                {clustering.currentResult.quality.inertia && (
+                  <div>Inertia: {clustering.currentResult.quality.inertia.toFixed(1)}</div>
+                )}
+                {clustering.currentResult.quality.modularityScore && (
+                  <div>Modularity: {clustering.currentResult.quality.modularityScore.toFixed(3)}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrbitScene({ data }: { data: NetworkData }) {
-  const { setSelectedPaper, selectedPaper } = usePapers();
+  const { setSelectedPaper, selectedPaper, clustering } = usePapers();
 
   const mainNode = data.nodes.find(node => node.type === 'main');
   const otherNodes = data.nodes.filter(node => node.type !== 'main');
 
-  const getNodeColor = (type: string) => {
-    switch (type) {
+  const getNodeColor = (node: any) => {
+    // Use cluster color if clustering is active and node has cluster
+    if (clustering.isActive && node.clusterId && node.clusterColor) {
+      return node.clusterColor;
+    }
+    
+    // Fallback to original type-based colors
+    switch (node.type) {
       case 'reference': return '#10B981';
       case 'citation': return '#F59E0B';
       case 'similar': return '#8B5CF6';
@@ -193,7 +289,7 @@ function OrbitScene({ data }: { data: NetworkData }) {
           node={node}
           radius={getOrbitRadius(index, otherNodes.length, node.type)}
           speed={getOrbitSpeed(node.type)}
-          color={getNodeColor(node.type)}
+          color={getNodeColor(node)}
           onClick={() => setSelectedPaper(node.paper)}
           isSelected={selectedPaper?.id === node.id}
         />
@@ -261,28 +357,8 @@ export function OrbitView({ data, fullscreen }: OrbitViewProps) {
         <OrbitScene data={data} />
       </Canvas>
 
-      {/* Legend */}
-      <div className="absolute top-4 right-4 bg-black bg-opacity-80 text-white p-4 rounded-lg">
-        <h4 className="font-semibold text-sm mb-3">Orbital Legend</h4>
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-            <span>Main Paper (Center)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>References (Inner orbit)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <span>Citations (Middle orbit)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span>Similar (Outer orbit)</span>
-          </div>
-        </div>
-      </div>
+      {/* Enhanced Legend with Cluster Information */}
+      <EnhancedLegend />
 
       {/* Controls */}
       <div className="absolute bottom-4 right-4 bg-black bg-opacity-80 text-white p-3 rounded-lg">

@@ -1,24 +1,4 @@
-import { Paper, NetworkData, NetworkNode, NetworkEdge } from "./types";
-
-// Filter interfaces
-export interface SearchFilters {
-  searchQuery: string;
-  yearRange: [number, number];
-  paperTypes: ('main' | 'reference' | 'citation' | 'similar')[];
-  journals: string[];
-  authors: string[];
-  minCitations: number;
-  maxCitations: number;
-}
-
-export interface FilterStats {
-  totalPapers: number;
-  filteredPapers: number;
-  yearRange: [number, number];
-  availableJournals: string[];
-  availableAuthors: string[];
-  citationRange: [number, number];
-}
+import { Paper, NetworkData, NetworkNode, NetworkEdge, SearchFilters, FilterStats, ClusterInfo } from "./types";
 
 // Default filters
 export const defaultFilters: SearchFilters = {
@@ -28,11 +8,12 @@ export const defaultFilters: SearchFilters = {
   journals: [],
   authors: [],
   minCitations: 0,
-  maxCitations: Infinity
+  maxCitations: Infinity,
+  selectedClusters: []
 };
 
 // Create filter statistics from papers
-export function createFilterStats(papers: Paper[]): FilterStats {
+export function createFilterStats(papers: Paper[], clusters: ClusterInfo[] = []): FilterStats {
   if (papers.length === 0) {
     return {
       totalPapers: 0,
@@ -40,7 +21,8 @@ export function createFilterStats(papers: Paper[]): FilterStats {
       yearRange: [new Date().getFullYear(), new Date().getFullYear()],
       availableJournals: [],
       availableAuthors: [],
-      citationRange: [0, 0]
+      citationRange: [0, 0],
+      availableClusters: []
     };
   }
 
@@ -55,7 +37,8 @@ export function createFilterStats(papers: Paper[]): FilterStats {
     yearRange: years.length > 0 ? [Math.min(...years), Math.max(...years)] : [new Date().getFullYear(), new Date().getFullYear()],
     availableJournals: journals,
     availableAuthors: authors,
-    citationRange: citations.length > 0 ? [Math.min(...citations), Math.max(...citations)] : [0, 0]
+    citationRange: citations.length > 0 ? [Math.min(...citations), Math.max(...citations)] : [0, 0],
+    availableClusters: clusters
   };
 }
 
