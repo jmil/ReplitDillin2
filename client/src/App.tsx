@@ -43,17 +43,17 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-950 dark:to-slate-950">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <header className="bg-white dark:bg-gray-950 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Dillin.ai
                 <span className="text-blue-600 dark:text-blue-400 ml-2">Scientific Intelligence</span>
               </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
+              <p className="text-gray-600 dark:text-gray-200 mt-1">
                 Explore research connections and citation networks
               </p>
             </div>
@@ -129,8 +129,8 @@ function AppContent() {
                   <div className="lg:col-span-1">
                     <div className="sticky top-8 space-y-6">
                       {/* Main Paper Card */}
-                      <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      <Card className="p-6 bg-white dark:bg-gray-900 shadow-sm border-gray-200 dark:border-gray-800">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                           Main Paper
                         </h3>
                         <PaperCard paper={mainPaper} isMain={true} />
@@ -138,8 +138,8 @@ function AppContent() {
 
                       {/* Selected Paper Details */}
                       {selectedPaper && selectedPaper.id !== mainPaper.id && (
-                        <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
-                          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                        <Card className="p-6 bg-white dark:bg-gray-900 shadow-sm border-gray-200 dark:border-gray-800">
+                          <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                             Selected Paper
                           </h3>
                           <PaperCard paper={selectedPaper} />
@@ -147,44 +147,44 @@ function AppContent() {
                       )}
 
                       {/* Statistics */}
-                      <Card className="p-6 bg-white dark:bg-gray-800 shadow-sm border-gray-200 dark:border-gray-700">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      <Card className="p-6 bg-white dark:bg-gray-900 shadow-sm border-gray-200 dark:border-gray-800">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-4">
                           Network Statistics
                         </h3>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Total Papers:</span>
-                            <span className="font-medium">{filterStats.totalPapers}</span>
+                            <span className="text-gray-600 dark:text-gray-300">Total Papers:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{filterStats.totalPapers}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Filtered Papers:</span>
-                            <span className="font-medium">{filterStats.filteredPapers}</span>
+                            <span className="text-gray-600 dark:text-gray-300">Filtered Papers:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{filterStats.filteredPapers}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">References:</span>
-                            <span className="font-medium">
+                            <span className="text-gray-600 dark:text-gray-300">References:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {mainPaper.references?.length || 0}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Citations:</span>
-                            <span className="font-medium">
+                            <span className="text-gray-600 dark:text-gray-300">Citations:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {mainPaper.citations?.length || 0}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Similar Papers:</span>
-                            <span className="font-medium">
+                            <span className="text-gray-600 dark:text-gray-300">Similar Papers:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {mainPaper.similarPapers?.length || 0}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Available Journals:</span>
-                            <span className="font-medium">{filterStats.availableJournals.length}</span>
+                            <span className="text-gray-600 dark:text-gray-300">Available Journals:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{filterStats.availableJournals.length}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Available Authors:</span>
-                            <span className="font-medium">{filterStats.availableAuthors.length}</span>
+                            <span className="text-gray-600 dark:text-gray-300">Available Authors:</span>
+                            <span className="font-medium text-gray-900 dark:text-white">{filterStats.availableAuthors.length}</span>
                           </div>
                         </div>
                       </Card>
