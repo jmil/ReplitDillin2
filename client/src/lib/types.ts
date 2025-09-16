@@ -6,6 +6,8 @@ export interface Paper {
   authors: string[];
   journal: string;
   publishDate: string;
+  publishDateRaw?: string; // Original date string from PubMed API
+  publishGranularity?: 'year' | 'month' | 'day'; // Level of date detail available
   abstract: string;
   citationCount?: number;
   references?: Paper[];

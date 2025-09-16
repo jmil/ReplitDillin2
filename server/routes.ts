@@ -80,7 +80,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           ...summary,
           abstract: details?.abstract || 'Abstract not available',
-          meshTerms: details?.meshTerms || []
+          meshTerms: details?.meshTerms || [],
+          publishDateRaw: details?.publishDateRaw || summary.publishDate,
+          publishGranularity: details?.publishGranularity || determineDateGranularity(summary.publishDate)
         };
       });
 
@@ -93,6 +95,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authors: mainPaperData.authors || [],
         journal: mainPaperData.journal,
         publishDate: parseDate(mainPaperData.publishDate).toISOString(),
+        publishDateRaw: mainPaperData.publishDateRaw || mainPaperData.publishDate,
+        publishGranularity: mainPaperData.publishGranularity || determineDateGranularity(mainPaperData.publishDate),
         abstract: mainPaperData.abstract,
         citationCount: mainPaperData.citationCount,
         meshTerms: mainPaperData.meshTerms || []
@@ -108,6 +112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           authors: p.authors || [],
           journal: p.journal,
           publishDate: parseDate(p.publishDate).toISOString(),
+          publishDateRaw: p.publishDateRaw,
+          publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
           meshTerms: p.meshTerms || []
@@ -123,6 +129,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           authors: p.authors || [],
           journal: p.journal,
           publishDate: parseDate(p.publishDate).toISOString(),
+          publishDateRaw: p.publishDateRaw,
+          publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
           meshTerms: p.meshTerms || []
@@ -138,6 +146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           authors: p.authors || [],
           journal: p.journal,
           publishDate: parseDate(p.publishDate).toISOString(),
+          publishDateRaw: p.publishDateRaw,
+          publishGranularity: p.publishGranularity,
           abstract: p.abstract,
           citationCount: p.citationCount,
           meshTerms: p.meshTerms || []
@@ -180,6 +190,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('WebSocket server initialized for real-time collaboration');
   
   return httpServer;
+}
+
+// Helper function to determine date granularity from a date string
+function determineDateGranularity(dateString: string): 'year' | 'month' | 'day' {
+  if (!dateString) return 'year';
+  
+  const cleanDate = dateString.replace(/\s+/g, ' ').trim();
+  
+  // Check for day-level granularity: "2023 Jan 15" 
+  if (/\d{4}\s+\w{3}\s+\d{1,2}/.test(cleanDate)) {
+    return 'day';
+  }
+  
+  // Check for month-level granularity: "2023 Jan"
+  if (/\d{4}\s+\w{3}/.test(cleanDate)) {
+    return 'month';
+  }
+  
+  // Default to year-level granularity
+  return 'year';
 }
 
 // Helper function to parse various date formats from PubMed

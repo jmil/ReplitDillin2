@@ -61,6 +61,26 @@ interface PubMedAbstract {
   }>;
 }
 
+// Helper function to convert month number or name to 3-letter abbreviation
+function convertToMonthAbbrev(month: string): string {
+  const monthMap: { [key: string]: string } = {
+    '1': 'Jan', '01': 'Jan', 'January': 'Jan', 'Jan': 'Jan',
+    '2': 'Feb', '02': 'Feb', 'February': 'Feb', 'Feb': 'Feb',
+    '3': 'Mar', '03': 'Mar', 'March': 'Mar', 'Mar': 'Mar',
+    '4': 'Apr', '04': 'Apr', 'April': 'Apr', 'Apr': 'Apr',
+    '5': 'May', '05': 'May', 'May': 'May',
+    '6': 'Jun', '06': 'Jun', 'June': 'Jun', 'Jun': 'Jun',
+    '7': 'Jul', '07': 'Jul', 'July': 'Jul', 'Jul': 'Jul',
+    '8': 'Aug', '08': 'Aug', 'August': 'Aug', 'Aug': 'Aug',
+    '9': 'Sep', '09': 'Sep', 'September': 'Sep', 'Sep': 'Sep',
+    '10': 'Oct', 'October': 'Oct', 'Oct': 'Oct',
+    '11': 'Nov', 'November': 'Nov', 'Nov': 'Nov',
+    '12': 'Dec', 'December': 'Dec', 'Dec': 'Dec'
+  };
+  
+  return monthMap[month] || month;
+}
+
 export class PubMedService {
   private baseUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
   private lastRequestTime = 0;
@@ -252,6 +272,38 @@ export class PubMedService {
           const journalPattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<Title>([^<]+)</Title>`, 'i');
           const journal = xmlText.match(journalPattern)?.[1] || 'Unknown Journal';
 
+          // Extract structured publication date information
+          const pubDatePattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<PubDate[\\s\\S]*?</PubDate>`, 'i');
+          const pubDateSection = xmlText.match(pubDatePattern)?.[0] || '';
+          
+          let publishDateRaw = '';
+          let publishGranularity: 'year' | 'month' | 'day' = 'year';
+          
+          // Extract year, month, day from structured XML
+          const yearMatch = pubDateSection.match(/<Year>([^<]+)<\/Year>/);
+          const monthMatch = pubDateSection.match(/<Month>([^<]+)<\/Month>/);
+          const dayMatch = pubDateSection.match(/<Day>([^<]+)<\/Day>/);
+          
+          if (yearMatch) {
+            const year = yearMatch[1];
+            publishDateRaw = year;
+            publishGranularity = 'year';
+            
+            if (monthMatch) {
+              const month = monthMatch[1];
+              // Convert numeric month to 3-letter abbreviation if needed
+              const monthAbbrev = convertToMonthAbbrev(month);
+              publishDateRaw = `${year} ${monthAbbrev}`;
+              publishGranularity = 'month';
+              
+              if (dayMatch) {
+                const day = dayMatch[1];
+                publishDateRaw = `${year} ${monthAbbrev} ${day}`;
+                publishGranularity = 'day';
+              }
+            }
+          }
+
           // Extract MeSH terms
           const meshPattern = new RegExp(`<PMID[^>]*>${pmid}</PMID>[\\s\\S]*?<MeshHeadingList[\\s\\S]*?</MeshHeadingList>`, 'i');
           const meshSection = xmlText.match(meshPattern)?.[0] || '';
@@ -264,6 +316,8 @@ export class PubMedService {
             authors,
             journal,
             abstract,
+            publishDateRaw,
+            publishGranularity,
             meshTerms: meshTerms.slice(0, 10) // Limit MeSH terms
           });
         }

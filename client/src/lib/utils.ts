@@ -14,9 +14,17 @@ const setLocalStorage = (key: string, value: any): void =>
 // Format citation in PubMed style
 export function formatPubMedCitation(paper: Paper): string {
   const authors = formatAuthors(paper.authors);
-  const year = new Date(paper.publishDate).getFullYear();
   
-  let citation = `${authors} ${paper.title}. ${paper.journal}. ${year}.`;
+  // Use publishDateRaw if available, otherwise fall back to extracting year from publishDate
+  let dateString = '';
+  if (paper.publishDateRaw && paper.publishGranularity) {
+    dateString = paper.publishDateRaw;
+  } else {
+    // Fallback to year extraction for backwards compatibility
+    dateString = new Date(paper.publishDate).getFullYear().toString();
+  }
+  
+  let citation = `${authors} ${paper.title}. ${paper.journal}. ${dateString}.`;
   
   if (paper.pmid) {
     citation += ` PMID: ${paper.pmid}.`;
