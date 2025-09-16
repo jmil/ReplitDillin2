@@ -63,6 +63,46 @@ interface PubMedAbstract {
 
 export class PubMedService {
   private baseUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+  private lastRequestTime = 0;
+  private readonly minRequestInterval = 334; // ~3 requests per second as recommended by NCBI
+  
+  // Rate limiting helper
+  private async rateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
+    }
+    this.lastRequestTime = Date.now();
+  }
+  
+  // Retry helper with exponential backoff
+  private async retryRequest<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await this.rateLimit();
+        return await fn();
+      } catch (error) {
+        lastError = error as Error;
+        
+        if (attempt === maxRetries) break;
+        
+        // Check if it's a rate limit error
+        if (lastError.message.includes('Too Many Requests') || lastError.message.includes('429')) {
+          const backoffDelay = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.log(`Rate limited, retrying in ${backoffDelay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          // If it's not a rate limit error, don't retry
+          break;
+        }
+      }
+    }
+    
+    throw lastError;
+  }
   
   // Convert DOI to PubMed ID
   async doiToPmid(doi: string): Promise<string | null> {
@@ -70,26 +110,28 @@ export class PubMedService {
       // Clean DOI
       const cleanDoi = doi.replace(/^doi:/, '').replace(/^https?:\/\/doi\.org\//, '');
       
-      const url = `${this.baseUrl}/esearch.fcgi`;
-      const params = new URLSearchParams({
-        db: 'pubmed',
-        term: `${cleanDoi}[DOI]`,
-        retmode: 'json',
-        retmax: '1'
+      const result = await this.retryRequest(async () => {
+        const url = `${this.baseUrl}/esearch.fcgi`;
+        const params = new URLSearchParams({
+          db: 'pubmed',
+          term: `${cleanDoi}[DOI]`,
+          retmode: 'json',
+          retmax: '1'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) {
+          throw new Error(`DOI search failed: ${response.statusText}`);
+        }
+
+        return await response.json();
       });
-
-      const response = await fetch(`${url}?${params}`);
-      if (!response.ok) {
-        throw new Error(`DOI search failed: ${response.statusText}`);
-      }
-
-      const data: PubMedSearchResult = await response.json();
       
-      if (data.esearchresult.idlist.length === 0) {
+      if (result.esearchresult.idlist.length === 0) {
         return null;
       }
 
-      return data.esearchresult.idlist[0];
+      return result.esearchresult.idlist[0];
     } catch (error) {
       console.error('Error converting DOI to PMID:', error);
       return null;
@@ -126,19 +168,21 @@ export class PubMedService {
     if (pmids.length === 0) return [];
 
     try {
-      const url = `${this.baseUrl}/esummary.fcgi`;
-      const params = new URLSearchParams({
-        db: 'pubmed',
-        id: pmids.join(','),
-        retmode: 'json'
+      const data = await this.retryRequest(async () => {
+        const url = `${this.baseUrl}/esummary.fcgi`;
+        const params = new URLSearchParams({
+          db: 'pubmed',
+          id: pmids.join(','),
+          retmode: 'json'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) {
+          throw new Error(`Summary fetch failed: ${response.statusText}`);
+        }
+
+        return await response.json();
       });
-
-      const response = await fetch(`${url}?${params}`);
-      if (!response.ok) {
-        throw new Error(`Summary fetch failed: ${response.statusText}`);
-      }
-
-      const data: PubMedSummary = await response.json();
       
       return pmids.map(pmid => {
         const summary = data.result[pmid];
@@ -147,10 +191,10 @@ export class PubMedService {
         return {
           pmid: summary.uid,
           title: summary.title,
-          authors: summary.authors?.map(author => author.name) || [],
+          authors: summary.authors?.map((author: any) => author.name) || [],
           journal: summary.source,
           publishDate: summary.pubdate || summary.epubdate || '',
-          doi: summary.articleids?.find(id => id.idtype === 'doi')?.value || null,
+          doi: summary.articleids?.find((id: any) => id.idtype === 'doi')?.value || null,
           citationCount: summary.pmcrefcount || 0,
           hasAbstract: summary.hasabstract === 1
         };
@@ -166,19 +210,21 @@ export class PubMedService {
     if (pmids.length === 0) return [];
 
     try {
-      const url = `${this.baseUrl}/efetch.fcgi`;
-      const params = new URLSearchParams({
-        db: 'pubmed',
-        id: pmids.join(','),
-        retmode: 'xml'
+      const xmlText = await this.retryRequest(async () => {
+        const url = `${this.baseUrl}/efetch.fcgi`;
+        const params = new URLSearchParams({
+          db: 'pubmed',
+          id: pmids.join(','),
+          retmode: 'xml'
+        });
+
+        const response = await fetch(`${url}?${params}`);
+        if (!response.ok) {
+          throw new Error(`Detail fetch failed: ${response.statusText}`);
+        }
+
+        return await response.text();
       });
-
-      const response = await fetch(`${url}?${params}`);
-      if (!response.ok) {
-        throw new Error(`Detail fetch failed: ${response.statusText}`);
-      }
-
-      const xmlText = await response.text();
       
       // Simple XML parsing for abstracts
       const papers = [];
@@ -233,84 +279,73 @@ export class PubMedService {
   // Get related papers (references and citations)
   async getRelatedPapers(pmid: string): Promise<{ references: string[]; citations: string[]; similar: string[] }> {
     try {
-      // Get similar papers using eLink
       const linkUrl = `${this.baseUrl}/elink.fcgi`;
       
-      // Get references (papers this paper cites)
-      const refParams = new URLSearchParams({
-        dbfrom: 'pubmed',
-        db: 'pubmed',
-        id: pmid,
-        linkname: 'pubmed_pubmed_refs',
-        retmode: 'json'
-      });
+      // Use sequential requests with rate limiting instead of parallel to avoid overwhelming the API
+      const references = await this.retryRequest(async () => {
+        const refParams = new URLSearchParams({
+          dbfrom: 'pubmed',
+          db: 'pubmed',
+          id: pmid,
+          linkname: 'pubmed_pubmed_refs',
+          retmode: 'json'
+        });
 
-      // Get citations (papers that cite this paper)
-      const citParams = new URLSearchParams({
-        dbfrom: 'pubmed',
-        db: 'pubmed',
-        id: pmid,
-        linkname: 'pubmed_pubmed_citedin',
-        retmode: 'json'
-      });
-
-      // Get similar papers
-      const simParams = new URLSearchParams({
-        dbfrom: 'pubmed',
-        db: 'pubmed',
-        id: pmid,
-        linkname: 'pubmed_pubmed',
-        retmode: 'json'
-      });
-
-      const [refResponse, citResponse, simResponse] = await Promise.allSettled([
-        fetch(`${linkUrl}?${refParams}`),
-        fetch(`${linkUrl}?${citParams}`),
-        fetch(`${linkUrl}?${simParams}`)
-      ]);
-
-      const references: string[] = [];
-      const citations: string[] = [];
-      const similar: string[] = [];
-
-      // Process references
-      if (refResponse.status === 'fulfilled' && refResponse.value.ok) {
-        try {
-          const refData = await refResponse.value.json();
-          if (refData.linksets?.[0]?.linksetdbs?.[0]?.links) {
-            references.push(...refData.linksets[0].linksetdbs[0].links.slice(0, 10));
-          }
-        } catch (e) {
-          console.log('No references found');
+        const response = await fetch(`${linkUrl}?${refParams}`);
+        if (!response.ok) {
+          throw new Error(`References fetch failed: ${response.statusText}`);
         }
-      }
 
-      // Process citations
-      if (citResponse.status === 'fulfilled' && citResponse.value.ok) {
-        try {
-          const citData = await citResponse.value.json();
-          if (citData.linksets?.[0]?.linksetdbs?.[0]?.links) {
-            citations.push(...citData.linksets[0].linksetdbs[0].links.slice(0, 10));
-          }
-        } catch (e) {
-          console.log('No citations found');
+        const data = await response.json();
+        if (data.linksets?.[0]?.linksetdbs?.[0]?.links) {
+          return data.linksets[0].linksetdbs[0].links.slice(0, 8);
         }
-      }
+        return [];
+      }).catch(() => []);
 
-      // Process similar papers
-      if (simResponse.status === 'fulfilled' && simResponse.value.ok) {
-        try {
-          const simData = await simResponse.value.json();
-          if (simData.linksets?.[0]?.linksetdbs?.[0]?.links) {
-            const similarIds = simData.linksets[0].linksetdbs[0].links
-              .filter((id: string) => id !== pmid) // Exclude the main paper
-              .slice(0, 15);
-            similar.push(...similarIds);
-          }
-        } catch (e) {
-          console.log('No similar papers found');
+      const citations = await this.retryRequest(async () => {
+        const citParams = new URLSearchParams({
+          dbfrom: 'pubmed',
+          db: 'pubmed',
+          id: pmid,
+          linkname: 'pubmed_pubmed_citedin',
+          retmode: 'json'
+        });
+
+        const response = await fetch(`${linkUrl}?${citParams}`);
+        if (!response.ok) {
+          throw new Error(`Citations fetch failed: ${response.statusText}`);
         }
-      }
+
+        const data = await response.json();
+        if (data.linksets?.[0]?.linksetdbs?.[0]?.links) {
+          return data.linksets[0].linksetdbs[0].links.slice(0, 8);
+        }
+        return [];
+      }).catch(() => []);
+
+      const similar = await this.retryRequest(async () => {
+        const simParams = new URLSearchParams({
+          dbfrom: 'pubmed',
+          db: 'pubmed',
+          id: pmid,
+          linkname: 'pubmed_pubmed',
+          retmode: 'json'
+        });
+
+        const response = await fetch(`${linkUrl}?${simParams}`);
+        if (!response.ok) {
+          throw new Error(`Similar papers fetch failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (data.linksets?.[0]?.linksetdbs?.[0]?.links) {
+          return data.linksets[0].linksetdbs[0].links
+            .filter((id: string) => id !== pmid) // Exclude the main paper
+            .slice(0, 12);
+        }
+        return [];
+      }).catch(() => []);
 
       return { references, citations, similar };
     } catch (error) {
