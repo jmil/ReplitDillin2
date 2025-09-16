@@ -288,6 +288,21 @@ export function CytoscapeNetwork({ data, fullscreen }: CytoscapeNetworkProps) {
     }
   }, [selectedPaper]);
 
+  // Empty state when no data
+  if (!data.nodes.length) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-50">
+        <div className="text-center text-gray-500 max-w-md">
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-lg font-semibold mb-2">No Papers Found</h3>
+          <p className="text-sm">
+            Try adjusting your filters or search criteria to see more results.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full relative bg-gray-50">
       <div ref={containerRef} className="w-full h-full" />

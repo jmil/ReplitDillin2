@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SearchInterface } from "./components/SearchInterface";
+import { SearchBar } from "./components/SearchBar";
+import { FilterPanel } from "./components/FilterPanel";
 import { VisualizationModes } from "./components/VisualizationModes";
 import { PaperCard } from "./components/PaperCard";
 import { usePapers } from "./lib/stores/usePapers";
@@ -26,8 +28,11 @@ function AppContent() {
     selectedPaper, 
     isLoading, 
     error, 
-    currentMode 
+    currentMode,
+    filterStats
   } = usePapers();
+
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -54,6 +59,16 @@ function AppContent() {
           <SearchInterface />
         </div>
 
+        {/* Search and Filter Bar */}
+        {mainPaper && !isLoading && (
+          <div className="mb-8">
+            <SearchBar 
+              onToggleFilters={() => setShowFilterPanel(!showFilterPanel)}
+              showFilterPanel={showFilterPanel}
+            />
+          </div>
+        )}
+
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
@@ -77,64 +92,90 @@ function AppContent() {
         {/* Main Content */}
         {mainPaper && !isLoading && (
           <div className="space-y-8">
-            {/* Paper Details Sidebar */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <div className="lg:col-span-1">
-                <div className="sticky top-8 space-y-6">
-                  {/* Main Paper Card */}
-                  <Card className="p-6 bg-white shadow-sm">
-                    <h3 className="font-semibold text-gray-900 mb-4">
-                      Main Paper
-                    </h3>
-                    <PaperCard paper={mainPaper} isMain={true} />
-                  </Card>
-
-                  {/* Selected Paper Details */}
-                  {selectedPaper && selectedPaper.id !== mainPaper.id && (
-                    <Card className="p-6 bg-white shadow-sm">
-                      <h3 className="font-semibold text-gray-900 mb-4">
-                        Selected Paper
-                      </h3>
-                      <PaperCard paper={selectedPaper} />
-                    </Card>
-                  )}
-
-                  {/* Statistics */}
-                  <Card className="p-6 bg-white shadow-sm">
-                    <h3 className="font-semibold text-gray-900 mb-4">
-                      Network Statistics
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Papers:</span>
-                        <span className="font-medium">{allPapers.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">References:</span>
-                        <span className="font-medium">
-                          {mainPaper.references?.length || 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Citations:</span>
-                        <span className="font-medium">
-                          {mainPaper.citations?.length || 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Similar Papers:</span>
-                        <span className="font-medium">
-                          {mainPaper.similarPapers?.length || 0}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
+            <div className="flex gap-8">
+              {/* Filter Panel Sidebar */}
+              {showFilterPanel && (
+                <div className="flex-shrink-0">
+                  <div className="sticky top-8">
+                    <FilterPanel isOpen={showFilterPanel} />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Visualization Area */}
-              <div className="lg:col-span-3">
-                <VisualizationModes />
+              {/* Main Content Area */}
+              <div className="flex-1 min-w-0">
+                {/* Paper Details and Visualization */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                  <div className="lg:col-span-1">
+                    <div className="sticky top-8 space-y-6">
+                      {/* Main Paper Card */}
+                      <Card className="p-6 bg-white shadow-sm">
+                        <h3 className="font-semibold text-gray-900 mb-4">
+                          Main Paper
+                        </h3>
+                        <PaperCard paper={mainPaper} isMain={true} />
+                      </Card>
+
+                      {/* Selected Paper Details */}
+                      {selectedPaper && selectedPaper.id !== mainPaper.id && (
+                        <Card className="p-6 bg-white shadow-sm">
+                          <h3 className="font-semibold text-gray-900 mb-4">
+                            Selected Paper
+                          </h3>
+                          <PaperCard paper={selectedPaper} />
+                        </Card>
+                      )}
+
+                      {/* Statistics */}
+                      <Card className="p-6 bg-white shadow-sm">
+                        <h3 className="font-semibold text-gray-900 mb-4">
+                          Network Statistics
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Papers:</span>
+                            <span className="font-medium">{filterStats.totalPapers}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Filtered Papers:</span>
+                            <span className="font-medium">{filterStats.filteredPapers}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">References:</span>
+                            <span className="font-medium">
+                              {mainPaper.references?.length || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Citations:</span>
+                            <span className="font-medium">
+                              {mainPaper.citations?.length || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Similar Papers:</span>
+                            <span className="font-medium">
+                              {mainPaper.similarPapers?.length || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Available Journals:</span>
+                            <span className="font-medium">{filterStats.availableJournals.length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Available Authors:</span>
+                            <span className="font-medium">{filterStats.availableAuthors.length}</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* Visualization Area */}
+                  <div className="lg:col-span-3">
+                    <VisualizationModes />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

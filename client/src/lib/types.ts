@@ -47,3 +47,23 @@ export interface NetworkEdge {
 }
 
 export type VisualizationMode = 'cytoscape' | 'd3' | 'timeline' | 'orbit' | 'universe';
+
+// Filter interfaces
+export interface SearchFilters {
+  searchQuery: string;
+  yearRange: [number, number];
+  paperTypes: ('main' | 'reference' | 'citation' | 'similar')[];
+  journals: string[];
+  authors: string[];
+  minCitations: number;
+  maxCitations: number;
+}
+
+export interface FilterStats {
+  totalPapers: number;
+  filteredPapers: number;
+  yearRange: [number, number];
+  availableJournals: string[];
+  availableAuthors: string[];
+  citationRange: [number, number];
+}

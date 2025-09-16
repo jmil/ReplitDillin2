@@ -53,9 +53,12 @@ export function TimelineView({ data, fullscreen }: TimelineViewProps) {
   if (papersByYear.length === 0) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <div className="text-xl mb-2">📅</div>
-          <p>No timeline data available</p>
+        <div className="text-center text-gray-500 max-w-md">
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-lg font-semibold mb-2">No Papers Found</h3>
+          <p className="text-sm">
+            Try adjusting your filters or search criteria to see more results.
+          </p>
         </div>
       </div>
     );

@@ -18,7 +18,13 @@ import {
 } from "lucide-react";
 
 export function VisualizationModes() {
-  const { currentMode, setVisualizationMode, networkData } = usePapers();
+  const { 
+    currentMode, 
+    setVisualizationMode, 
+    filteredNetworkData, 
+    filterStats,
+    filters 
+  } = usePapers();
   const [fullscreen, setFullscreen] = React.useState(false);
 
   const toggleFullscreen = () => {
@@ -67,9 +73,19 @@ export function VisualizationModes() {
     <div className={`${fullscreen ? 'fixed inset-0 z-50 bg-white' : ''}`}>
       <Card className="h-full">
         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Research Visualization
-          </h3>
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Research Visualization
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>
+                Showing {filterStats.filteredPapers} of {filterStats.totalPapers} papers
+              </span>
+              {filterStats.filteredPapers !== filterStats.totalPapers && (
+                <span className="text-blue-600 font-medium">(Filtered)</span>
+              )}
+            </div>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -112,7 +128,7 @@ export function VisualizationModes() {
               >
                 <div className="h-full relative">
                   <Component 
-                    data={networkData} 
+                    data={filteredNetworkData} 
                     fullscreen={fullscreen}
                   />
                 </div>
